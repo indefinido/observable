@@ -1,3 +1,5 @@
+
+
 // Karma configuration
 // Generated on Mon May 27 2013 16:00:28 GMT-0300 (BRT)
 
@@ -9,8 +11,10 @@ basePath = '';
 files = [
 
   // Test environment
-  MOCHA,
-  MOCHA_ADAPTER,
+  //MOCHA,            Switch to mocha when not testing ie
+  //MOCHA_ADAPTER,
+  JASMINE,
+  JASMINE_ADAPTER,
   'components/cjohansen-sinon/sinon.js',
 
   // Test dependencies
@@ -26,6 +30,9 @@ files = [
 exclude = [
   'spec/coverage'
 ];
+
+// Custom frameworks
+frameworks = ['jasmine']
 
 
 // test results reporter to use

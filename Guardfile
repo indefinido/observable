@@ -23,7 +23,7 @@ guard 'shell' do
     puts `component-build --verbose --name test --dev`
   }
 
-  watch(/component.json/) { |m|
+  watch(/component.json|lib\/observable/) { |m|
     puts '  Installing possible new components'
     puts `component install`
 

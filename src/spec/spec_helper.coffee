@@ -1,5 +1,5 @@
 root = exports ? window
 
-chai = require 'chaijs-chai'
-
-root.should = chai.should()
+if Object.prototype.defineProperty
+  chai = require 'chaijs-chai'
+  root.should = chai.should()
