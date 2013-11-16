@@ -14264,6 +14264,9 @@ observable.unobserve = function (object) {
 
 check = function (keypath, value) {
   this.observed[keypath] = value;
+
+  // TODO implement subscription
+  (this.dirty === false) && (this.dirty = true);
   return true;
 };
 
