@@ -2,18 +2,18 @@
   "name": "observable",
   "repo": "indefinido/observable",
   "description": "Observable capabilities built upon observable shim.",
-  "version": "0.0.1",
+  "version": "0.1.0",
   "keywords": [],
   "dependencies": {
-	"kapit/observe-utils": "*",
-	"component/jquery": "*"
+    "kapit/observe-utils": "*",
+    "component/jquery": "*"
   },
   "development": {
     "chaijs/chai": "*"
   },
   "license": "WTFPL",
   "scripts": [
-	"components/cjohansen-sinon/sinon.js",
+    "components/cjohansen-sinon/sinon.js",
 
     "index.js",
 

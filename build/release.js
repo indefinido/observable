@@ -14252,7 +14252,7 @@ if (requiresDomElement) {
 
 
 observable.unobserve = function (object) {
-    var property;
+  var property;
 
   for (property in mixin) {
     delete object[property];
@@ -14359,7 +14359,7 @@ generator = {
 
         while (i--) {
           // TODO remove jquery dependency
-          type = $.type(arguments[i]);
+          type = $.type(new_array[i]);
           if (!new_array[i].observed
               && (type != 'object' || type != 'array')) {
             new_array[i] = observable(new_array[i]);
