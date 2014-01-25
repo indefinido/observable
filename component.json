@@ -2,7 +2,7 @@
   "name": "observable",
   "repo": "indefinido/observable",
   "description": "Observable capabilities built upon observable shim.",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "keywords": [],
   "dependencies": {
     "kapit/observe-utils": "*",
