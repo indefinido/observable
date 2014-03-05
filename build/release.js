@@ -14098,6 +14098,7 @@ module.exports = require('./lib/observable');
 });
 require.register("observable/lib/observable.js", function(exports, require, module){
 // TODO Better keypath support
+// TODO Convert to coffeescript
 
 // Shim older browsers
 if (!Object.create          ) require('../vendor/shims/object.create');
@@ -14282,8 +14283,8 @@ observable.unobserve = function (object) {
 check = function (keypath, value) {
   this.observed[keypath] = value;
 
-  // TODO implement subscription
-  (this.dirty === false) && (this.dirty = true);
+  // TODO implement subscription to any change, using Object.observe
+  (this.dirty === false && keypath != 'dirty') && (this.dirty = true);
   return true;
 };
 
@@ -14546,7 +14547,10 @@ require.register("observable/vendor/shims/accessors.js", function(exports, requi
           changed_value = object[property];
           descriptor.set.call(object, changed_value);
 
-          // Restore get function if it exists and there's no falsey value
+          // Restore get function if:
+          //  it was mentioned on definition
+          //  there's no falsey value, in that case we just need to return falsey value
+          //  current toString is not the getter, to prevent further unecessary redefinitions
           if (descriptor.get && descriptor.value && descriptor.value.toString != descriptor.bound_getter) {
             // TODO if (descriptor.get + '' === 'undefined') descriptor.get = '';        // Handle undefined getter
             descriptor.value.toString = descriptor.bound_getter
@@ -14564,33 +14568,35 @@ require.register("observable/vendor/shims/accessors.js", function(exports, requi
       }
 
       return setter;
-    }
+    };
 
     // Shim define property with apropriated fail cases exceptions
     Object.defineProperty = function (obj, prop, descriptor) {
       var fix;
 
-      if (!obj.attachEvent) throw new TypeError('Object.defineProperty: First parameter must be a dom element.');
+      if (descriptor.set) {
+        if (!obj.attachEvent) throw new TypeError('Object.defineProperty: First parameter must be a dom element. When descriptor has \'set\' property.');
 
-      if (!fix && !inDocument(obj)) throw new TypeError('Object.defineProperty: Dom element must be attached in document.');
+        if (!fix && !inDocument(obj)) throw new TypeError('Object.defineProperty: Dom element must be attached in document.');
+      }
 
       if (!descriptor) throw new TypeError('Object.defineProperty (object, property, descriptor): Descriptor must be an object, was \'' + descriptor + '\'.');
-
       if ((descriptor.get || descriptor.set) && descriptor.value) throw new TypeError('Object.defineProperty: Descriptor must have only getters and setters or value.');
 
       // Store current value in descriptor
       descriptor.value = descriptor.value || (descriptor.get && descriptor.get.call(obj)) || obj[prop];
 
-      if (descriptor.get || descriptor.set) {
+      if (descriptor.set) {
         // Detach old listeners if any
         detach = true;
         obj[prop] = 'detaching';
         detach = false;
 
         if (descriptor.get) {
+          // TODO remove jquery dependency
           descriptor.bound_getter   = $.extend($.proxy(descriptor.get, obj), descriptor.get);
 
-          // We only bind the getter when we have a non falsey value
+          // Why? we only bind the getter when we have a non falsey value
           if (descriptor.value) descriptor.value.toString = descriptor.bound_getter;
 
           // Although its not allowed for convention to have getters
@@ -14601,6 +14607,14 @@ require.register("observable/vendor/shims/accessors.js", function(exports, requi
 
         (fix || obj).attachEvent("onpropertychange", generate_setter(obj, prop, descriptor));
 
+      } else if (descriptor.get) {
+        descriptor.bound_getter   = $.extend($.proxy(descriptor.get, obj), descriptor.get);
+        descriptor.value.toString = descriptor.bound_getter;
+
+        // Although its not allowed for convention to have getters
+        // and setters with the descriptor value, here we just reuse
+        // the descriptor stored value
+        obj[prop] = descriptor.value;
       } else {
         obj[prop] = descriptor.value;
       }
@@ -14622,7 +14636,44 @@ require.register("observable/vendor/shims/accessors.js", function(exports, requi
         }
       }
     };
-  }
+
+    ObjectCreate = Object.create;
+
+    Object.create = function (prototype, properties) {
+      var complexDescriptor, fix, descriptor, name;
+
+      for (name in properties) {
+        descriptor = properties[name]
+        if (descriptor instanceof Object) {
+          complexDescriptor = !!(descriptor.get || descriptor.set)
+
+          if (complexDescriptor) {
+            break;
+          }
+        }
+      }
+
+      if (complexDescriptor) {
+        if (typeof object != 'function') {
+          var fix = document.createElement('fix');
+          document.appendChild(fix);
+
+          // Copy over prototype properties
+          for (name in prototype) {
+            fix[name] = prototype[name];
+          }
+
+          Object.defineProperties(fix, properties);
+        } else {
+
+        }
+        return fix;
+      } else {
+        return ObjectCreate(prototype, properties)
+      }
+    }
+  };
+
 
   /* TODO Use define Property, and only define if
      non-enumerable properties are allowed
