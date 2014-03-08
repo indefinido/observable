@@ -14106,11 +14106,12 @@ if (!Array.prototype.indexOf) require('../vendor/shims/array.indexOf');
 
 // Object.defineProperty (for ie5+)
 if (typeof require != 'undefined') {
-  require('../vendor/shims/accessors.js');
-
   // __lookup*__ and __define*__ for browsers with defineProperty support
   // TODO Figure out why gives an infinity loop
   require('../vendor/shims/accessors-legacy.js');
+
+  // Creates Object.defineProperty
+  require('../vendor/shims/accessors.js');
 }
 
 // Require Dependencies
@@ -14187,9 +14188,10 @@ mixin = {
 if (requiresDomElement) {
 
   observable = function (object) {
+    var fix;
 
     // observable() or observable(object)
-      if (this.document && this.location) {
+    if (this.document && this.location) {
       if (!object) {
         object = {};
       }
@@ -14204,15 +14206,28 @@ if (requiresDomElement) {
       }
     }
 
+    // TODO better documentation
     if (!jQuery.isReady) throw new Error('observable.call: For compatibility reasons, observable can only be called when dom is loaded.');
-    var fix = document.createElement('fix');
 
-    if (!jQuery.isReady) $(function () {document.body.appendChild(fix);});
-    else document.body.appendChild(fix);
+    // Create dom element if object isn't one
+    if (!(typeof object.nodeName === 'string')) {
+      fix = document.createElement('fix');
 
-    if (!object.observed) generator.observable_for(fix);
+      if (!jQuery.isReady) $(function () {document.body.appendChild(fix);});
+      else document.body.appendChild(fix);
 
-    return $.extend(fix, object, mixin);
+      // Replace object with dom node
+      object = fix;
+    }
+
+    // Observe element if it is not observed
+    // TODO remove jquery dependency
+    if (!object.observed) {
+      generator.observable_for(object);
+      object = $.extend(object, mixin);
+    }
+
+    return object;
   };
 
   var ignores = document.createElement('fix'), fix_ignores = [], property;
@@ -14250,9 +14265,8 @@ if (requiresDomElement) {
   observable.ignores = [];
 }
 
-
 observable.unobserve = function (object) {
-  var name, value, subname;
+  var name, value, subname, unobserved = {};
 
   // TODO remove root setter and root getter and callbacks from
   // callback thread
@@ -14265,6 +14279,7 @@ observable.unobserve = function (object) {
   // Remove array properties overrides
   for (name in object) {
     value = object[name];
+
     if ($.type(value) == 'array') {
       delete value.thread;
       delete value.object;
@@ -14276,8 +14291,16 @@ observable.unobserve = function (object) {
     }
   }
 
+  for (name in object) {
+    // TODO put Array.indexOf as a dependency
+    if (observable.ignores && observable.ignores.indexOf(name) == -1) {
+      unobserved[name] = object[name];
+    }
+  }
+
   delete object.observed;
-  return true;
+
+  return unobserved;
 };
 
 check = function (keypath, value) {
@@ -14289,7 +14312,8 @@ check = function (keypath, value) {
 };
 
 generator = {
-  observe: function(keypath, callback) {
+  // TODO pass object as parameter
+  observe: function (keypath, callback) {
     return Object.defineProperty(this, keypath, {
       get: generator.getter.call(this, keypath),
       set: generator.setter.call(this, keypath, callback),
@@ -14298,10 +14322,20 @@ generator = {
   },
 
   observable_for: function (object) {
-    return Object.defineProperty(object, 'observed', {
+    Object.defineProperty(object, 'observed', {
       configurable: true,
       enumerable: false,
       value: {}
+    });
+
+    // TODO call the current object.toJSON after this method
+    return Object.defineProperty(object, 'toJSON', {
+      enumerable: false,
+      value: function () {
+        // TODO remove underscore dependency
+        return observable.unobserve(_.omit(this, observable.ignores));
+        // old_to_json()
+      }
     });
   },
 
@@ -14451,7 +14485,9 @@ exports.adapter = {
     if (record == null) {
       throw new TypeError('observable.adapters.rivets.subscribe: No record provided for subscription');
     }
-    return record.subscribe(attribute_path, callback);
+    if (attribute_path) {
+      return record.subscribe(attribute_path, callback);
+    }
   },
   unsubscribe: function(record, attribute_path, callback) {
     if (record == null) {
@@ -14581,9 +14617,9 @@ require.register("observable/vendor/shims/accessors.js", function(exports, requi
       }
 
       if (!descriptor) throw new TypeError('Object.defineProperty (object, property, descriptor): Descriptor must be an object, was \'' + descriptor + '\'.');
-      if ((descriptor.get || descriptor.set) && descriptor.value) throw new TypeError('Object.defineProperty: Descriptor must have only getters and setters or value.');
 
       // Store current value in descriptor
+      // TODO only try to set descriptor value if it was passed as parameter
       descriptor.value = descriptor.value || (descriptor.get && descriptor.get.call(obj)) || obj[prop];
 
       if (descriptor.set) {
@@ -14609,7 +14645,9 @@ require.register("observable/vendor/shims/accessors.js", function(exports, requi
 
       } else if (descriptor.get) {
         descriptor.bound_getter   = $.extend($.proxy(descriptor.get, obj), descriptor.get);
-        descriptor.value.toString = descriptor.bound_getter;
+
+        // Why? we only bind the getter when we have a non falsey value
+        if (descriptor.value) descriptor.value.toString = descriptor.bound_getter;
 
         // Although its not allowed for convention to have getters
         // and setters with the descriptor value, here we just reuse
@@ -14638,6 +14676,7 @@ require.register("observable/vendor/shims/accessors.js", function(exports, requi
     };
 
     ObjectCreate = Object.create;
+    baseElement  = document.createElement('fix');
 
     Object.create = function (prototype, properties) {
       var complexDescriptor, fix, descriptor, name;
@@ -14653,19 +14692,26 @@ require.register("observable/vendor/shims/accessors.js", function(exports, requi
         }
       }
 
-      if (complexDescriptor) {
+      if (complexDescriptor || prototype.nodeName === 'fix' || properties && properties._shim) {
+        delete properties && properties._shim
+
         if (typeof object != 'function') {
           var fix = document.createElement('fix');
           document.appendChild(fix);
 
           // Copy over prototype properties
           for (name in prototype) {
-            fix[name] = prototype[name];
+            try {
+              if (name in baseElement) continue;
+              fix[name] = prototype[name];
+            } catch (e) {
+              console.warn("Object.create: Invalid shimmed property: " + name + ", with error " + e);
+            }
           }
 
           Object.defineProperties(fix, properties);
         } else {
-
+          throw new TypeError('Functions with complex descriptors not implemented yet');
         }
         return fix;
       } else {

@@ -7,10 +7,12 @@
   hasOwnProp = ObjectProto.hasOwnProperty,
   getProp    = Object.getOwnPropertyDescriptor,
   defineProp = Object.defineProperty,
+  objectCreate = Object.create,
   toStrings = [],
   features = null,
   stack = [], detach,
-  prototypeBase = [Object, String, Array, Function, Boolean, Number, RegExp, Date, Error];
+  fixedOwnProperty,
+   prototypeBase = [Object, String, Array, Function, Boolean, Number, RegExp, Date, Error];
 
   // IE7 Does not have Element and Window defined, so only add them if
   // they exists check here
@@ -97,6 +99,8 @@
     Object.defineProperty = function (obj, prop, descriptor) {
       var fix;
 
+      if (!prop)
+
       if (descriptor.set) {
         if (!obj.attachEvent) throw new TypeError('Object.defineProperty: First parameter must be a dom element. When descriptor has \'set\' property.');
 
@@ -132,7 +136,9 @@
 
       } else if (descriptor.get) {
         descriptor.bound_getter   = $.extend($.proxy(descriptor.get, obj), descriptor.get);
-        descriptor.value.toString = descriptor.bound_getter;
+
+        // Why? we only bind the getter when we have a non falsey value
+        if (descriptor.value) descriptor.value.toString = descriptor.bound_getter;
 
         // Although its not allowed for convention to have getters
         // and setters with the descriptor value, here we just reuse
@@ -160,7 +166,12 @@
       }
     };
 
-    ObjectCreate = Object.create;
+    baseElement      = document.createElement('fix');
+    fixedOwnProperty = function (name) {
+      if (name in baseElement) return false;
+      return hasOwnProp.call(this, name);
+    };
+
 
     Object.create = function (prototype, properties) {
       var complexDescriptor, fix, descriptor, name;
@@ -176,23 +187,37 @@
         }
       }
 
-      if (complexDescriptor) {
+      if (complexDescriptor || prototype.nodeName === 'fix' || properties && properties._shim) {
+        properties && delete properties._shim;
+
         if (typeof object != 'function') {
-          var fix = document.createElement('fix');
+          fix = document.createElement('fix');
           document.appendChild(fix);
 
           // Copy over prototype properties
           for (name in prototype) {
-            fix[name] = prototype[name];
+            try {
+              if (name in baseElement) continue;
+              fix[name] = prototype[name];
+            } catch (e) {
+              console.warn("Object.create: Invalid shimmed property: " + name + ", with error " + e);
+            }
           }
+
+          // Ensure most normalized for loops to work property, by
+          // skiping the dom element properties on own property
+          // checking.
+          //
+          // TODO ensure other own property methods checking
+          fix.hasOwnProperty = fixedOwnProperty
 
           Object.defineProperties(fix, properties);
         } else {
-
+          throw new TypeError('Functions with complex descriptors not implemented yet');
         }
         return fix;
       } else {
-        return ObjectCreate(prototype, properties)
+        return objectCreate(prototype, properties)
       }
     }
   };
