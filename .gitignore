@@ -13,3 +13,7 @@
 
 # Mac OS X Files
 .DS_*
+
+
+# Local Installed dependencies
+#components
