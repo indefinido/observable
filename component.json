@@ -8,11 +8,11 @@
     "component/jquery": "*"
   },
   "development": {
-    "chaijs/chai": "*"
+    "chaijs/chai": "*",
+    "components/cjohansen-sinon/sinon.js": "*"
   },
   "license": "WTFPL",
   "scripts": [
-    "components/cjohansen-sinon/sinon.js",
 
     "index.js",
 
