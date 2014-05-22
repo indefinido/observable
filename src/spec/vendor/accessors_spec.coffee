@@ -1,8 +1,7 @@
 require 'observable/vendor/shims/accessors.js'
 
-$ = require 'jquery'
-
 describe 'Object #defineProperty',  ->
+  return unless root.jasmine
 
   describe 'on dom elements', ->
     spy = object = null
@@ -40,12 +39,12 @@ describe 'Object #defineProperty',  ->
       @object = {}
       @spy = sinon.spy()
 
-    # it's simply not possible
     it 'should not define property setter', (done) ->
-      expect( =>
-        Object.defineProperty @object, 'kun',
-          set: @spy
-      ).toThrow()
+      Object.defineProperty @object, 'kun',
+        set: @spy
+
+      @object.kun = 42
+      expect(@spy.called).toBe true
 
 
     it 'should define property getter', (done) ->
@@ -56,4 +55,3 @@ describe 'Object #defineProperty',  ->
 
       expect(@object.kun + 1).toBe 43
       expect(getter.called).toBe true
-

@@ -1,8 +1,9 @@
-observable = require('observable').mixin
-root = exports ? window
-$ = require 'jquery'
+observable = require 'observable'
+root       = exports ? window
+$          = require 'jquery'
 
 describe 'observable #()',  ->
+  return unless root.jasmine
 
   object = null
 
@@ -18,7 +19,7 @@ describe 'observable #()',  ->
     called = null
 
     beforeEach ->
-      object = observable({})
+      object = observable {}
       called = false
       true
 

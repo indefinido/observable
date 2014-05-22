@@ -1,6 +1,6 @@
 var $, observable, root;
 
-observable = require('observable').mixin;
+observable = require('observable');
 
 root = typeof exports !== "undefined" && exports !== null ? exports : window;
 
@@ -9,6 +9,9 @@ $ = require('jquery');
 describe('observable #()', function() {
   var object;
 
+  if (!root.jasmine) {
+    return;
+  }
   object = null;
   beforeEach(function() {
     return object = {

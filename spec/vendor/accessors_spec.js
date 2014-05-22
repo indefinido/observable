@@ -1,10 +1,9 @@
-var $;
-
 require('observable/vendor/shims/accessors.js');
 
-$ = require('jquery');
-
 describe('Object #defineProperty', function() {
+  if (!root.jasmine) {
+    return;
+  }
   describe('on dom elements', function() {
     var object, spy;
 
@@ -41,13 +40,11 @@ describe('Object #defineProperty', function() {
       return this.spy = sinon.spy();
     });
     it('should not define property setter', function(done) {
-      var _this = this;
-
-      return expect(function() {
-        return Object.defineProperty(_this.object, 'kun', {
-          set: _this.spy
-        });
-      }).toThrow();
+      Object.defineProperty(this.object, 'kun', {
+        set: this.spy
+      });
+      this.object.kun = 42;
+      return expect(this.spy.called).toBe(true);
     });
     return it('should define property getter', function(done) {
       var getter;

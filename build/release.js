@@ -1,35 +1,19 @@
-
 /**
- * Require the given path.
+ * Require the module at `name`.
  *
- * @param {String} path
+ * @param {String} name
  * @return {Object} exports
  * @api public
  */
 
-function require(path, parent, orig) {
-  var resolved = require.resolve(path);
+function require(name) {
+  var module = require.modules[name];
+  if (!module) throw new Error('failed to require "' + name + '"');
 
-  // lookup failed
-  if (null == resolved) {
-    orig = orig || path;
-    parent = parent || 'root';
-    var err = new Error('Failed to require "' + orig + '" from "' + parent + '"');
-    err.path = orig;
-    err.parent = parent;
-    err.require = true;
-    throw err;
-  }
-
-  var module = require.modules[resolved];
-
-  // perform real require()
-  // by invoking the module's
-  // registered function
-  if (!module.exports) {
-    module.exports = {};
+  if (!('exports' in module) && typeof module.definition === 'function') {
     module.client = module.component = true;
-    module.call(this, module.exports, require.relative(resolved), module);
+    module.definition.call(this, module.exports = {}, module);
+    delete module.definition;
   }
 
   return module.exports;
@@ -42,160 +26,33 @@ function require(path, parent, orig) {
 require.modules = {};
 
 /**
- * Registered aliases.
- */
-
-require.aliases = {};
-
-/**
- * Resolve `path`.
+ * Register module at `name` with callback `definition`.
  *
- * Lookup:
- *
- *   - PATH/index.js
- *   - PATH.js
- *   - PATH
- *
- * @param {String} path
- * @return {String} path or null
- * @api private
- */
-
-require.resolve = function(path) {
-  if (path.charAt(0) === '/') path = path.slice(1);
-
-  var paths = [
-    path,
-    path + '.js',
-    path + '.json',
-    path + '/index.js',
-    path + '/index.json'
-  ];
-
-  for (var i = 0; i < paths.length; i++) {
-    var path = paths[i];
-    if (require.modules.hasOwnProperty(path)) return path;
-    if (require.aliases.hasOwnProperty(path)) return require.aliases[path];
-  }
-};
-
-/**
- * Normalize `path` relative to the current path.
- *
- * @param {String} curr
- * @param {String} path
- * @return {String}
- * @api private
- */
-
-require.normalize = function(curr, path) {
-  var segs = [];
-
-  if ('.' != path.charAt(0)) return path;
-
-  curr = curr.split('/');
-  path = path.split('/');
-
-  for (var i = 0; i < path.length; ++i) {
-    if ('..' == path[i]) {
-      curr.pop();
-    } else if ('.' != path[i] && '' != path[i]) {
-      segs.push(path[i]);
-    }
-  }
-
-  return curr.concat(segs).join('/');
-};
-
-/**
- * Register module at `path` with callback `definition`.
- *
- * @param {String} path
+ * @param {String} name
  * @param {Function} definition
  * @api private
  */
 
-require.register = function(path, definition) {
-  require.modules[path] = definition;
+require.register = function (name, definition) {
+  require.modules[name] = {
+    definition: definition
+  };
 };
 
 /**
- * Alias a module definition.
+ * Define a module's exports immediately with `exports`.
  *
- * @param {String} from
- * @param {String} to
+ * @param {String} name
+ * @param {Generic} exports
  * @api private
  */
 
-require.alias = function(from, to) {
-  if (!require.modules.hasOwnProperty(from)) {
-    throw new Error('Failed to alias "' + from + '", it does not exist');
-  }
-  require.aliases[to] = from;
-};
-
-/**
- * Return a require function relative to the `parent` path.
- *
- * @param {String} parent
- * @return {Function}
- * @api private
- */
-
-require.relative = function(parent) {
-  var p = require.normalize(parent, '..');
-
-  /**
-   * lastIndexOf helper.
-   */
-
-  function lastIndexOf(arr, obj) {
-    var i = arr.length;
-    while (i--) {
-      if (arr[i] === obj) return i;
-    }
-    return -1;
-  }
-
-  /**
-   * The relative require() itself.
-   */
-
-  function localRequire(path) {
-    var resolved = localRequire.resolve(path);
-    return require(resolved, parent, path);
-  }
-
-  /**
-   * Resolve relative to the parent.
-   */
-
-  localRequire.resolve = function(path) {
-    var c = path.charAt(0);
-    if ('/' == c) return path.slice(1);
-    if ('.' == c) return require.normalize(p, path);
-
-    // resolve deps by returning
-    // the dep in the nearest "deps"
-    // directory
-    var segs = parent.split('/');
-    var i = lastIndexOf(segs, 'deps') + 1;
-    if (!i) i = 0;
-    path = segs.slice(0, i + 1).join('/') + '/deps/' + path;
-    return path;
+require.define = function (name, exports) {
+  require.modules[name] = {
+    exports: exports
   };
-
-  /**
-   * Check if module is defined at `path`.
-   */
-
-  localRequire.exists = function(path) {
-    return require.modules.hasOwnProperty(localRequire.resolve(path));
-  };
-
-  return localRequire;
 };
-require.register("component-jquery/index.js", function(exports, require, module){
+require.register("component~jquery@1.9.1", function (exports, module) {
 /*!
  * jQuery JavaScript Library v1.9.1
  * http://jquery.com/
@@ -9799,405 +9656,13 @@ if ( typeof define === "function" && define.amd && define.amd.jQuery ) {
 })( window );
 
 });
-require.register("observable/index.js", function(exports, require, module){
-module.exports = require('./lib/observable');
+
+require.register("observable", function (exports, module) {
+module.exports = require("observable/lib/observable.js");
 
 });
-require.register("observable/lib/observable.js", function(exports, require, module){
-// TODO Better keypath support
-// TODO Convert to coffeescript
 
-// Shim older browsers
-if (!Object.create          ) require('../vendor/shims/object.create');
-if (!Array.prototype.indexOf) require('../vendor/shims/array.indexOf');
-
-// Object.defineProperty (for ie5+)
-if (typeof require != 'undefined') {
-  // __lookup*__ and __define*__ for browsers with defineProperty support
-  // TODO Figure out why gives an infinity loop
-  require('../vendor/shims/accessors-legacy.js');
-
-  // Creates Object.defineProperty
-  require('../vendor/shims/accessors.js');
-}
-
-// Require Dependencies
-if (!window['jQuery']) jQuery = $ = require('jquery');
-
-// Observable Implementation
-var observable, requiresDomElement, check, lookup, mixin, generator, mutations;
-
-// Support objects
-
-// TODO implement Object.getOwnPropertyDescriptor
-lookup = {
-  setter: Object.prototype.__lookupSetter__ || function (property) {
-    return this.observed && this.observed[property + '_setter'];
-  },
-  getter: Object.prototype.__lookupGetter__ || function (property) {
-    var default_getter;
-    return this.observed && this.observed[property + '_getter'] || (
-      (default_getter = $.proxy(lookup.default_getter, this, property)) &&
-      (default_getter.is_default = true) &&
-      (default_getter)
-    );
-  },
-  types: {
-    'undefined': undefined,
-    'null': null,
-    'true': true,
-    'false': false,
-    'NaN': NaN
-  },
-  // overrides: [Object.prototype.toString, String.prototype.toString, Array.prototype.toString, Number.prototype.toString],
-  basic_types: [undefined, null],
-  default_getter: function (property) {
-    var possible_value = this[property];
-
-    // Getter is the toString property of object
-    if (possible_value && possible_value.hasOwnProperty('toString')) {
-
-      if (possible_value.toString.is_default) return this.observed[property];
-
-      return possible_value.toString.call(this);
-
-    } else if (possible_value in lookup.types) {
-
-      return lookup.types[possible_value];
-
-    } else return possible_value;
-  }
-};
-
-
-// Core Implementation
-
-requiresDomElement = Object.defineProperty['requiresDomElement'];
-
-mixin = {
-  subscribe: function observable_subscribe (keypath, callback) {
-    if (keypath == 'observed') throw new TypeError('observable.subscribe: cannot observe reserved property observed');
-    if ($.isArray(this[keypath])) generator.mutations.call(this, keypath);
-    generator.observe.call(this, keypath, callback);
-    return true;
-  },
-  unsubscribe: function (object, keypath, callback) {
-    console.error("observable.unsubscribe not implemented yet.");
-    console.log(object, keypath, callback);
-  },
-  publish: function observable_publish (keypath, value) {
-    // TODO actually call callbacks
-    return this[keypath] = value;
-  }
-};
-
-
-if (requiresDomElement) {
-
-  observable = function (object) {
-    var fix;
-
-    // observable() or observable(object)
-    if (this.document && this.location) {
-      if (!object) {
-        object = {};
-      }
-      // observable.call(...)
-    } else {
-      // observable.call(param, param)
-      if (object) {
-        throw new TypeError('Two objects provided! Call either with observable.call(object) or observable(object), not with observable.call(param, param)');
-        // observable.call(object)
-      } else {
-        object = this;
-      }
-    }
-
-    // TODO better documentation
-    if (!jQuery.isReady) throw new Error('observable.call: For compatibility reasons, observable can only be called when dom is loaded.');
-
-    // Create dom element if object isn't one
-    if (!(typeof object.nodeName === 'string')) {
-      fix = document.createElement('fix');
-
-      if (!jQuery.isReady) $(function () {document.body.appendChild(fix);});
-      else document.body.appendChild(fix);
-
-      // Replace object with dom node
-      object = $.extend(fix, object);
-    }
-
-    // Observe element if it is not observed
-    // TODO remove jquery dependency
-    if (!object.observed) {
-      generator.observable_for(object);
-      object = $.extend(object, mixin);
-    }
-
-    return object;
-  };
-
-  var ignores = document.createElement('fix'), fix_ignores = [], property;
-
-  for (property in ignores) {
-    fix_ignores.push(property);
-  }
-
-  observable.ignores = fix_ignores;
-
-} else {
-
-  observable = function (object) {
-    // observable() or observable(object)
-    if (this === window) {
-      if (!object) {
-        object = {};
-      }
-    // observable.call(...)
-    } else if (this !== window) {
-      // observable.call(param, param)
-      if (object) {
-        throw new TypeError('Two objects provided! Call either with observable.call(object) or observable(object), not with observable.call(param, param)');
-      // observable.call(object)
-      } else {
-        object = this;
-      }
-    }
-
-    if (!object.observed) generator.observable_for(object);
-
-    return $.extend(object, mixin);
-  };
-
-  observable.ignores = [];
-}
-
-observable.unobserve = function (object) {
-  var name, value, subname, unobserved = {};
-
-  // TODO remove root setter and root getter and callbacks from
-  // callback thread
-
-  // Remove mixed in properties
-  for (name in mixin) {
-    delete object[name];
-  }
-
-  // Remove array properties overrides
-  for (name in object) {
-    value = object[name];
-
-    if ($.type(value) == 'array') {
-      delete value.thread;
-      delete value.object;
-      delete value.key;
-
-      for (subname in mutations.overrides) {
-        delete value[subname];
-      }
-    }
-  }
-
-  for (name in object) {
-    // TODO put Array.indexOf as a dependency
-    if (observable.ignores && observable.ignores.indexOf(name) == -1) {
-      unobserved[name] = object[name];
-    }
-  }
-
-  delete object.observed;
-
-  return unobserved;
-};
-
-check = function (keypath, value) {
-  this.observed[keypath] = value;
-
-  // TODO implement subscription to any change, using Object.observe
-  (this.dirty === false && keypath != 'dirty') && (this.dirty = true);
-  return true;
-};
-
-generator = {
-  // TODO pass object as parameter
-  observe: function (keypath, callback) {
-    return Object.defineProperty(this, keypath, {
-      get: generator.getter.call(this, keypath),
-      set: generator.setter.call(this, keypath, callback),
-      enumerable: true
-    });
-  },
-
-  observable_for: function (object) {
-    var toJSON;
-
-    Object.defineProperty(object, 'observed', {
-      configurable: true,
-      enumerable: false,
-      value: {}
-    });
-
-    // TODO remove json in favor of the toJSON convention
-    toJSON = object.json || object.toJSON
-
-    if (toJSON) {
-      return Object.defineProperty(object, 'toJSON', {
-        enumerable: false,
-        value: function () {
-          var json;
-
-          // TODO remove underscore dependency
-          // TODO ? move toJSON and observed to other methods
-          json = toJSON.apply(this, arguments);
-          return observable.unobserve(_.omit(json, observable.ignores, ['toJSON', 'observed']));
-        }
-      });
-
-    }
-  },
-
-  // TODO improve readability
-  // TODO implement linked list
-  setter: function subscribed_setter (keypath, callback) {
-    var setter = lookup.setter.call(this, keypath), current, getter, old_setter;
-
-    // Set value
-    this.observed[keypath] = lookup.getter.call(this, keypath) && lookup.getter.call(this, keypath)() || this[keypath];
-
-    // First time subscribing
-    if (!setter) {
-      setter = function setter (value) {
-        check.call(this, keypath, value) !== false && setter.callback_thread.call(this, value);
-      };
-
-      // First time subscribing but does not have callback_thread associated
-    } else if (!setter.callback_thread) {
-      old_setter = setter;
-      setter = function setter (value) {
-        check.call(this, keypath, value) !== false && setter.callback_thread.call(this, value);
-      };
-
-      setter.callback_thread = old_setter;
-    }
-
-    current = setter.callback_thread || $.noop;
-
-    setter.callback_thread = function thread (value) {
-      current.call(this, value) !== false && callback.call(this, value);
-    };
-
-    // TODO better implementation of loookup setter / lookup getter on accessors shim
-    if (requiresDomElement) this.observed[keypath + '_setter'] = setter;
-
-    return setter;
-  },
-  getter: function subscribed_getter (keypath) {
-    var object = this, getter;
-
-    getter = lookup.getter.call(this, keypath) || function root_getter () {
-      return object.observed[keypath];
-    };
-
-    // TODO better implementation of loookup setter / lookup getter on accessors shim
-    if (requiresDomElement) this.observed[keypath + '_getter'] = getter;
-
-    return getter;
-  },
-  mutations: function(keypath) {
-    var setter = lookup.setter.call(this, keypath),
-    array = this[keypath];
-
-    // First time subscribing, and it is an array
-    if (!setter) {
-      // TODO use this.subscribe instead of generator.observe.call
-      generator.observe.call(this, keypath, function(new_array) {
-        var i, type, j;
-
-        // Avoid non push operations!
-        // TODO remove jquery dependency
-        if ($.type(new_array) !== 'array') return;
-
-        // Skip this if it is not the first time
-        if (new_array.object === array.object && new_array.thread === array.thread) return;
-        i = new_array.length;
-        j = new_array.length;
-
-        new_array.thread = array.thread;
-        new_array.object = array.object;
-        new_array.key    = keypath;
-
-        while (i--) {
-          // TODO remove jquery dependency
-          type = $.type(new_array[i]);
-          if (!new_array[i].observed
-
-              // Recursivelly convert objects and arrays to observables
-              && (type == 'object' || type == 'array')) {
-
-            new_array[i] = observable(new_array[i]);
-
-          }
-        }
-
-        new_array.length = j;
-
-        // Update internal property value
-        $.extend(new_array, mutations.overrides);
-      });
-
-      setter = lookup.setter.call(this, keypath);
-    }
-
-    // TODO Transform this code to define property
-    array.thread = setter.callback_thread;
-    array.object = this;
-    array.key = keypath;
-
-    // Override default array methods
-    $.extend(array, mutations.overrides);
-
-    if (!this.observed.mutate) this.observed.mutate = mutations.mutate;
-  }
-};
-
-mutations = {
-  mutate: function(thread, method, array) {
-    array.method = method;
-    thread.call(this, array);
-    this.publish(array.key, array); // TODO ver se é uma boa
-    delete array.method;
-  },
-  overrides: {
-    push: function() {
-      var i = arguments.length, operation;
-
-      while (i--) {
-        !arguments[i].observed && $.type(arguments[i]) == 'object' && (arguments[i] = observable(arguments[i]));
-      }
-
-      operation = Array.prototype.push.apply(this, arguments); // TODO Convert arguments for real array
-      this.object.observed.mutate.call(this.object, this.thread, 'push', this);
-      return operation;
-    }
-  }
-};
-
-$('pop shift unshift'.split(' ')).each(function (i, method) {
-  mutations.overrides[method] = function () {
-    Array.prototype[method].apply(this, arguments);
-    this.object.observed.mutate.call(this.object, this.thread, method, this);
-  };
-});
-
-if (typeof exports != 'undefined') {
-  exports.mixin = observable;
-} else {
-  window.observable = observable;
-}
-s
-
-});
-require.register("observable/lib/adapters/rivets.js", function(exports, require, module){
+require.register("observable/lib/adapters/rivets.js", function (exports, module) {
 exports.adapter = {
   subscribe: function(record, attribute_path, callback) {
     if (record == null) {
@@ -10228,7 +9693,290 @@ exports.adapter = {
 };
 
 });
-require.register("observable/vendor/shims/accessors.js", function(exports, require, module){
+
+require.register("observable/lib/lookup.js", function (exports, module) {
+var lookup;
+
+lookup = {
+  setter: Object.prototype.__lookupSetter__ || function(property) {
+    return this.observed && this.observed[property + "_setter"];
+  },
+  getter: Object.prototype.__lookupGetter__ || function(property) {
+    var default_getter;
+
+    default_getter = void 0;
+    return this.observed && this.observed[property + "_getter"] || ((default_getter = $.proxy(lookup.default_getter, this, property)) && (default_getter.is_default = true) && default_getter);
+  },
+  types: {
+    undefined: undefined,
+    "null": null,
+    "true": true,
+    "false": false,
+    NaN: NaN
+  },
+  basic_types: [undefined, null],
+  default_getter: function(property) {
+    var possible_value;
+
+    possible_value = this[property];
+    if (possible_value && possible_value.hasOwnProperty("toString")) {
+      if (possible_value.toString.is_default) {
+        return this.observed[property];
+      }
+      return possible_value.toString.call(this);
+    } else if (possible_value in lookup.types) {
+      return lookup.types[possible_value];
+    } else {
+      return possible_value;
+    }
+  }
+};
+
+module.exports = lookup;
+
+});
+
+require.register("observable/lib/observable.js", function (exports, module) {
+require("observable/lib/platform.js");
+var generator = require("observable/lib/generator.js");
+var jQuery = require("component~jquery@1.9.1");
+var fix_ignores, ignores, observable, observable_prototype, observable_publish, observable_subscribe, property, requiresDomElement;
+
+requiresDomElement = Object.defineProperty.requiresDomElement;
+
+observable_prototype = {
+  subscribe: observable_subscribe = function(keypath, callback) {
+    if (keypath === "observed") {
+      throw new TypeError("observable.subscribe: cannot observe reserved property observed");
+    }
+    if (jQuery.isArray(this[keypath])) {
+      generator.mutations.call(this, keypath);
+    }
+    generator.observe.call(this, keypath, callback);
+    return true;
+  },
+  unsubscribe: function(object, keypath, callback) {
+    console.error("observable.unsubscribe not implemented yet.");
+    console.log(object, keypath, callback);
+  },
+  publish: observable_publish = function(keypath, value) {
+    return this[keypath] = value;
+  }
+};
+
+if (requiresDomElement) {
+  observable = function(object) {
+    var fix;
+
+    fix = void 0;
+    if (this.document && this.location) {
+      if (!object) {
+        object = {};
+      }
+    } else {
+      if (object) {
+        throw new TypeError("Two objects provided! Call either with observable.call(object) or observable(object), not with observable.call(param, param)");
+      } else {
+        object = this;
+      }
+    }
+    if (!jQuery.isReady) {
+      throw new Error("observable.call: For compatibility reasons, observable can only be called when dom is loaded.");
+    }
+    if (typeof object.nodeName !== "string") {
+      fix = document.createElement("fix");
+      if (!jQuery.isReady) {
+        jQuery(function() {
+          document.body.appendChild(fix);
+        });
+      } else {
+        document.body.appendChild(fix);
+      }
+      object = jQuery.extend(fix, object);
+    }
+    if (!object.observed) {
+      generator.observable_for(object);
+      object = jQuery.extend(object, observable_prototype);
+    }
+    return object;
+  };
+  ignores = document.createElement("fix");
+  fix_ignores = [];
+  property = void 0;
+  for (property in ignores) {
+    fix_ignores.push(property);
+  }
+  observable.ignores = fix_ignores;
+} else {
+  observable = function(object) {
+    if (this === window) {
+      if (!object) {
+        object = {};
+      }
+    } else if (this !== window) {
+      if (object) {
+        throw new TypeError("Two objects provided! Call either with observable.call(object) or observable(object), not with observable.call(param, param)");
+      } else {
+        object = this;
+      }
+    }
+    if (!object.observed) {
+      generator.observable_for(object);
+    }
+    return jQuery.extend(object, observable_prototype);
+  };
+  observable.ignores = [];
+}
+
+observable.unobserve = function(object) {
+  var name, subname, unobserved, value;
+
+  name = void 0;
+  value = void 0;
+  subname = void 0;
+  unobserved = {};
+  for (name in observable_prototype) {
+    delete object[name];
+  }
+  for (name in object) {
+    value = object[name];
+    if (jQuery.type(value) === "array") {
+      delete value.thread;
+      delete value.object;
+      delete value.key;
+      for (subname in mutations.overrides) {
+        delete value[subname];
+      }
+    }
+  }
+  for (name in object) {
+    if (observable.ignores && observable.ignores.indexOf(name) === -1) {
+      unobserved[name] = object[name];
+    }
+  }
+  delete object.observed;
+  return unobserved;
+};
+
+observable.mixin = observable;
+
+module.exports = observable;
+
+});
+
+require.register("observable/lib/platform.js", function (exports, module) {
+if (!Object.prototype.create) {
+  require("observable/vendor/shims/object.create.js");
+}
+
+if (!Array.prototype.indexOf) {
+  require("observable/vendor/shims/array.indexOf.js");
+}
+
+if (typeof require !== "undefined") {
+  require("observable/vendor/shims/accessors-legacy.js");
+  require("observable/vendor/shims/accessors.js");
+}
+
+});
+
+require.register("observable/vendor/shims/accessors-legacy.js", function (exports, module) {
+/*
+ * Xccessors Legacy: Cross-browser legacy non-standard accessors
+ * http://github.com/eligrey/Xccessors
+ *
+ * 2010-03-21
+ *
+ * By Elijah Grey, http://eligrey.com
+ *
+ * A shim that implements __defineGetter__, __defineSetter__, __lookupGetter__,
+ * and __lookupSetter__
+ * in browsers that have ECMAScript 5 accessor support but not the legacy methods.
+ *
+ * Public Domain.
+ * NO WARRANTY EXPRESSED OR IMPLIED. USE AT YOUR OWN RISK.
+*/
+
+/*global Element, Window, HTMLDocument */
+
+/*jslint white: true, undef: true, nomen: true, eqeqeq: true, bitwise: true, regexp: true,
+  strict: true, newcap: true, immed: true, maxlen: 90 */
+
+/*! @source http://purl.eligrey.com/github/Xccessors/blob/master/xccessors-legacy.js*/
+
+"use strict";
+
+(function () {
+    var
+    defineProp = Object.defineProperty,
+    getProp    = Object.getOwnPropertyDescriptor,
+
+    // methods being implemented
+    methods    = [
+        "__defineGetter__", "__defineSetter__", "__lookupGetter__", "__lookupSetter__"
+    ],
+
+    // objects to implement legacy methods onto their prototypes
+    // Object.prototype[method] doesn't work on everything for IE
+    extend     = [Object, String, Array, Function, Boolean, Number,
+                 RegExp, Date, Error],
+    len        = extend.length,
+    proto      = "prototype",
+    extendMethod = function (method, fun) {
+        var i = len;
+        if (!(method in {})) {
+            while (i--) {
+              defineProp(extend[i][proto], method, {value: fun, enumerable: false})
+            }
+        }
+    };
+
+    // IE8 Does not support enumerable key so we abort!
+    // TODO Fix this without cluttering the prototype
+    try {defineProp({}, 'domo', {value: true, enumerable: false})} catch (e) {return;}
+
+    // IE7 Does not have Element, Window defined, so we check here
+    if (typeof Element != 'undefined') extend.push(Element);
+    if (typeof Window != 'undefined') extend.push(Window);
+
+    // IE9 Does not have html document defined, so we check here
+    if (typeof HTMLDocument != 'undefined') extend.push(HTMLDocument);
+
+
+    if (defineProp) {
+        extendMethod(methods[0], function (prop, fun) { // __defineGetter__
+            defineProp(this, prop, { get: fun });
+        });
+
+        extendMethod(methods[1], function (prop, fun) { // __defineSetter__
+            defineProp(this, prop, { set: fun });
+        });
+    }
+
+    if (getProp && !defineProp.requiresDomElement) {
+      extendMethod(methods[2], function (prop) { // __lookupGetter__
+        var descriptor = getProp(this, prop);
+        if (descriptor && descriptor.get) return descriptor.get;
+
+         // look in prototype too
+        descriptor = getProp(this.constructor[proto], prop);
+        if (descriptor && descriptor.get) return descriptor.get;
+      });
+
+      extendMethod(methods[3], function (prop) { // __lookupSetter__
+        var descriptor = getProp(this, prop);
+        if (descriptor && descriptor.set) return descriptor.set;
+
+        // look in prototype too
+        descriptor = getProp(this.constructor[proto], prop);
+        if (descriptor && descriptor.set) return descriptor.set;
+      });
+    }
+}());
+
+});
+
+require.register("observable/vendor/shims/accessors.js", function (exports, module) {
 'use strict';
 
 (function () {
@@ -10479,102 +10227,8 @@ require.register("observable/vendor/shims/accessors.js", function(exports, requi
 
 
 });
-require.register("observable/vendor/shims/accessors-legacy.js", function(exports, require, module){
-/*
- * Xccessors Legacy: Cross-browser legacy non-standard accessors
- * http://github.com/eligrey/Xccessors
- *
- * 2010-03-21
- *
- * By Elijah Grey, http://eligrey.com
- *
- * A shim that implements __defineGetter__, __defineSetter__, __lookupGetter__,
- * and __lookupSetter__
- * in browsers that have ECMAScript 5 accessor support but not the legacy methods.
- *
- * Public Domain.
- * NO WARRANTY EXPRESSED OR IMPLIED. USE AT YOUR OWN RISK.
-*/
 
-/*global Element, Window, HTMLDocument */
-
-/*jslint white: true, undef: true, nomen: true, eqeqeq: true, bitwise: true, regexp: true,
-  strict: true, newcap: true, immed: true, maxlen: 90 */
-
-/*! @source http://purl.eligrey.com/github/Xccessors/blob/master/xccessors-legacy.js*/
-
-"use strict";
-
-(function () {
-    var
-    defineProp = Object.defineProperty,
-    getProp    = Object.getOwnPropertyDescriptor,
-
-    // methods being implemented
-    methods    = [
-        "__defineGetter__", "__defineSetter__", "__lookupGetter__", "__lookupSetter__"
-    ],
-
-    // objects to implement legacy methods onto their prototypes
-    // Object.prototype[method] doesn't work on everything for IE
-    extend     = [Object, String, Array, Function, Boolean, Number,
-                 RegExp, Date, Error],
-    len        = extend.length,
-    proto      = "prototype",
-    extendMethod = function (method, fun) {
-        var i = len;
-        if (!(method in {})) {
-            while (i--) {
-              defineProp(extend[i][proto], method, {value: fun, enumerable: false})
-            }
-        }
-    };
-
-    // IE8 Does not support enumerable key so we abort!
-    // TODO Fix this without cluttering the prototype
-    try {defineProp({}, 'domo', {value: true, enumerable: false})} catch (e) {return;}
-
-    // IE7 Does not have Element, Window defined, so we check here
-    if (typeof Element != 'undefined') extend.push(Element);
-    if (typeof Window != 'undefined') extend.push(Window);
-
-    // IE9 Does not have html document defined, so we check here
-    if (typeof HTMLDocument != 'undefined') extend.push(HTMLDocument);
-
-
-    if (defineProp) {
-        extendMethod(methods[0], function (prop, fun) { // __defineGetter__
-            defineProp(this, prop, { get: fun });
-        });
-
-        extendMethod(methods[1], function (prop, fun) { // __defineSetter__
-            defineProp(this, prop, { set: fun });
-        });
-    }
-
-    if (getProp && !defineProp.requiresDomElement) {
-      extendMethod(methods[2], function (prop) { // __lookupGetter__
-        var descriptor = getProp(this, prop);
-        if (descriptor && descriptor.get) return descriptor.get;
-
-         // look in prototype too
-        descriptor = getProp(this.constructor[proto], prop);
-        if (descriptor && descriptor.get) return descriptor.get;
-      });
-
-      extendMethod(methods[3], function (prop) { // __lookupSetter__
-        var descriptor = getProp(this, prop);
-        if (descriptor && descriptor.set) return descriptor.set;
-
-        // look in prototype too
-        descriptor = getProp(this.constructor[proto], prop);
-        if (descriptor && descriptor.set) return descriptor.set;
-      });
-    }
-}());
-
-});
-require.register("observable/vendor/shims/array.indexOf.js", function(exports, require, module){
+require.register("observable/vendor/shims/array.indexOf.js", function (exports, module) {
 if (!Array.prototype.indexOf) { 
     Array.prototype.indexOf = function(obj, start) {
          for (var i = (start || 0), j = this.length; i < j; i++) {
@@ -10585,7 +10239,8 @@ if (!Array.prototype.indexOf) {
 }
 
 });
-require.register("observable/vendor/shims/object.create.js", function(exports, require, module){
+
+require.register("observable/vendor/shims/object.create.js", function (exports, module) {
 // ES5 15.2.3.5
 // http://es5.github.com/#x15.2.3.5
 if (!Object.create) {
@@ -10665,6 +10320,5 @@ if (!Object.create) {
 }
 
 });
-require.alias("component-jquery/index.js", "observable/deps/jquery/index.js");
-require.alias("component-jquery/index.js", "jquery/index.js");
 
+require("observable")

@@ -1,92 +1,94 @@
-var observable, root;
-
-observable = require('observable').mixin;
+var root;
 
 root = typeof exports !== "undefined" && exports !== null ? exports : window;
 
 describe('observable #()', function() {
-  var object;
-
   if (!root.should) {
     return;
   }
-  object = null;
   beforeEach(function() {
-    return object = {
+    return this.object = {
       property: 'value'
     };
   });
-  it('should not have observed property', function() {
-    return object.should.not.have.property('observed');
+  it('should create a observed property', function() {
+    this.object.should.not.have.property('observed');
+    this.object = observable(this.object);
+    return this.object.should.have.property('observed');
   });
-  xit('should let element unsubscribe to property', function() {});
   describe('#subscribe', function() {
-    var called;
-
-    called = null;
     beforeEach(function() {
-      object = observable({});
-      called = false;
-      return true;
+      this.object = observable({});
+      return this.spy = sinon.spy();
     });
     it('should subscribe to property', function() {
-      var spy;
-
-      spy = sinon.spy();
-      object.subscribe('other', spy);
-      object.other = 'mafagafo';
-      return spy.called.should.be["true"];
+      this.object.subscribe('other', this.spy);
+      this.object.other = 'mafagafo';
+      return this.spy.called.should.be["true"];
     });
     it('should let multiple function subscriptions to property', function() {
-      var also_called;
+      var second_spy;
 
-      also_called = false;
-      object.subscribe('other', function() {
-        return called = true;
-      });
-      object.subscribe('other', function() {
-        return also_called = true;
-      });
-      object.other = 'mafagafo';
-      called.should.be["true"];
-      return also_called.should.be["true"];
+      second_spy = sinon.spy();
+      this.object.subscribe('other', this.spy);
+      this.object.subscribe('other', second_spy);
+      this.object.other = 'mafagafo';
+      this.spy.called.should.be["true"];
+      return second_spy.called.should.be["true"];
     });
     describe('subscribes to properties of type array', function() {
       it('should observe objects added to array', function() {
-        var friend, spy;
+        var friend;
 
-        spy = sinon.spy();
         friend = {
-          domo: 1
+          id: 1
         };
-        object.friends = [];
-        object.subscribe('friends', function() {});
-        object.friends = [friend];
-        object.friends[0].should.be.eq(friend);
+        this.object.friends = [];
+        this.object.subscribe('friends', function() {});
+        this.object.friends = [friend];
+        this.object.friends[0].should.be.eq(friend);
         friend.should.have.property('observed');
-        friend.subscribe('domo', spy);
-        friend.domo = 2;
-        return spy.callCount.should.be.eq(1);
+        friend.subscribe('id', this.spy);
+        friend.id = 2;
+        return this.spy.callCount.should.be.eq(1);
       });
       xit('should override native methods');
       return it('should preserve array bindings when setting new array', function() {
-        var spy;
-
-        spy = sinon.spy();
-        object.friends = [];
-        object.subscribe('friends', spy);
-        object.friends.push(1);
-        object.friends = [];
-        object.friends.push(2);
-        object.friends.length.should.be.eq(1);
-        return spy.callCount.should.be.eq(3);
+        this.object.friends = [];
+        this.object.subscribe('friends', this.spy);
+        this.object.friends.push(1);
+        this.object.friends = [];
+        this.object.friends.push(2);
+        this.object.friends.length.should.be.eq(1);
+        return this.spy.callCount.should.be.eq(3);
       });
     });
-    return it('should create a observed property', function() {
-      return object.should.have.property('observed');
-    });
+    return xit('should let element unsubscribe to property', function() {});
   });
-  return xdescribe('#publish', function() {
-    return xit('should let element publish to property', function() {});
+  xdescribe('#publish', function() {
+    return xit('should let element publish to property');
+  });
+  return describe('#unsubscribe', function() {
+    beforeEach(function() {
+      this.object = observable({});
+      return this.spy = sinon.spy();
+    });
+    it('should remove all listeners from property', function() {
+      this.object.subscribe('property', this.spy);
+      this.object.unsubscribe('property');
+      this.object.property = 'value';
+      return this.spy.called.should.be["false"];
+    });
+    return it('should remove only the specified listener from queue', function() {
+      var second_spy;
+
+      second_spy = sinon.spy();
+      this.object.subscribe('property', this.spy);
+      this.object.subscribe('property', second_spy);
+      this.object.unsubscribe('property', this.spy);
+      this.object.property = 'value';
+      this.spy.called.should.be["false"];
+      return second_spy.called.should.be["true"];
+    });
   });
 });
