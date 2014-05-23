@@ -38,6 +38,9 @@ jQuery.extend observable,
     observer = observers[keypath] ||= new Observer object, keypath
 
   unobserve: (object) ->
+    # In case the users tries to unobserve a not observed object
+    return unless object.observation
+
     unobserved = {}
 
     # TODO remove root setter and root getter and callbacks from

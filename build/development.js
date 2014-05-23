@@ -14710,6 +14710,9 @@ jQuery.extend(observable, {\n\
   unobserve: function(object) {\n\
     var name, unobserved;\n\
 \n\
+    if (!object.observation) {\n\
+      return;\n\
+    }\n\
     unobserved = {};\n\
     for (name in observation.methods) {\n\
       delete object[name];\n\
