@@ -1,11 +1,11 @@
 # Shim older needed features
-`import 'observable/lib/platform.js'`
+`import './platform.js'`
 # TODO remove jquery dependency
 `import jQuery from 'jquery'`
 # Observable Implementation
-`import observation from 'observable/lib/observable/observation.js'`
-`import selection   from 'observable/lib/observable/selection.js'`
-`import Observer    from 'observable/lib/observable/observer.js'`
+`import observation from './observable/observation.js'`
+`import selection   from './observable/selection.js'`
+`import Observer    from './observable/observer.js'`
 
 
 observable = ->
