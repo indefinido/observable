@@ -21,6 +21,7 @@
   "scripts": [
     "index.js",
     "lib/**/*.js",
+    "vendor/observe-js/*.js",
     "vendor/shims/*.js"
   ]
 }

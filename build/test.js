@@ -14361,6 +14361,272 @@ require.register("observable/lib/adapters/rivets.js", Function("exports, module"
 //# sourceURL=lib/adapters/rivets.js"
 ));
 
+require.register("observable/lib/legacy/notifierable.js", Function("exports, module",
+"var jQuery = require(\"component~jquery@1.9.1\");\n\
+var mutations, notifierable, subscribed_getter;\n\
+\n\
+notifierable = {\n\
+  observe: function(object, keypath, callback) {\n\
+    return Object.defineProperty(object, keypath, {\n\
+      get: this.getter(object, keypath),\n\
+      set: this.setter(object, keypath, callback),\n\
+      enumerable: true\n\
+    });\n\
+  },\n\
+  storage_for: function(object) {\n\
+    var toJSON;\n\
+\n\
+    toJSON = void 0;\n\
+    Object.defineProperty(object, \"observed\", {\n\
+      configurable: true,\n\
+      enumerable: false,\n\
+      value: {}\n\
+    });\n\
+    toJSON = object.json || object.toJSON;\n\
+    if (toJSON) {\n\
+      return Object.defineProperty(object, \"toJSON\", {\n\
+        enumerable: false,\n\
+        value: function() {\n\
+          var json;\n\
+\n\
+          json = void 0;\n\
+          json = toJSON.apply(this, arguments);\n\
+          return observable.unobserve(_.omit(json, observable.ignores, [\"toJSON\", \"observed\"]));\n\
+        }\n\
+      });\n\
+    }\n\
+  },\n\
+  setter: function(object, keypath, callback) {\n\
+    var current, old_setter, setter, thread;\n\
+\n\
+    setter = lookup.setter.call(object, keypath);\n\
+    this.observed[keypath] = lookup.getter.call(object, keypath) && lookup.getter.call(object, keypath)() || object[keypath];\n\
+    if (!setter) {\n\
+      setter = function(value) {\n\
+        return check.call(object, keypath, value) !== false && setter.callback_thread.call(object, value);\n\
+      };\n\
+    } else if (!setter.callback_thread) {\n\
+      old_setter = setter;\n\
+      setter = function(value) {\n\
+        return check.call(object, keypath, value) !== false && setter.callback_thread.call(object, value);\n\
+      };\n\
+      setter.callback_thread = old_setter;\n\
+    }\n\
+    current = setter.callback_thread || $.noop;\n\
+    setter.callback_thread = thread = function(value) {\n\
+      return current.call(object, value) !== false && callback.call(object, value);\n\
+    };\n\
+    if (requiresDomElement) {\n\
+      this.observed[keypath + \"_setter\"] = setter;\n\
+    }\n\
+    return setter;\n\
+  },\n\
+  getter: subscribed_getter = function(object, keypath) {\n\
+    var getter, root_getter;\n\
+\n\
+    getter = lookup.getter.call(object, keypath) || (root_getter = function() {\n\
+      return object.observed[keypath];\n\
+    });\n\
+    if (requiresDomElement) {\n\
+      this.observed[keypath + \"_getter\"] = getter;\n\
+    }\n\
+    return getter;\n\
+  },\n\
+  mutations: function(keypath) {\n\
+    var array, setter;\n\
+\n\
+    setter = lookup.setter.call(this, keypath);\n\
+    array = this[keypath];\n\
+    if (!setter) {\n\
+      this.observe.call(this, keypath, function(new_array) {\n\
+        var i, j, type;\n\
+\n\
+        i = void 0;\n\
+        type = void 0;\n\
+        j = void 0;\n\
+        if ($.type(new_array) !== \"array\") {\n\
+          return;\n\
+        }\n\
+        if (new_array.object === array.object && new_array.thread === array.thread) {\n\
+          return;\n\
+        }\n\
+        i = new_array.length;\n\
+        j = new_array.length;\n\
+        new_array.thread = array.thread;\n\
+        new_array.object = array.object;\n\
+        new_array.key = keypath;\n\
+        while (i--) {\n\
+          type = $.type(new_array[i]);\n\
+          if (!new_array[i].observed && (type === \"object\" || type === \"array\")) {\n\
+            new_array[i] = observable(new_array[i]);\n\
+          }\n\
+        }\n\
+        new_array.length = j;\n\
+        $.extend(new_array, mutations.overrides);\n\
+      });\n\
+      setter = lookup.setter.call(this, keypath);\n\
+    }\n\
+    array.thread = setter.callback_thread;\n\
+    array.object = this;\n\
+    array.key = keypath;\n\
+    $.extend(array, mutations.overrides);\n\
+    if (!this.observed.mutate) {\n\
+      this.observed.mutate = mutations.mutate;\n\
+    }\n\
+  }\n\
+};\n\
+\n\
+mutations = {\n\
+  mutate: function(thread, method, array) {\n\
+    array.method = method;\n\
+    thread.call(this, array);\n\
+    this.publish(array.key, array);\n\
+    delete array.method;\n\
+  },\n\
+  overrides: {\n\
+    push: function() {\n\
+      var i, operation;\n\
+\n\
+      i = arguments.length;\n\
+      operation = void 0;\n\
+      while (i--) {\n\
+        !arguments[i].observed && $.type(arguments[i]) === \"object\" && (arguments[i] = observable(arguments[i]));\n\
+      }\n\
+      operation = Array.prototype.push.apply(this, arguments);\n\
+      this.object.observed.mutate.call(this.object, this.thread, \"push\", this);\n\
+      return operation;\n\
+    }\n\
+  }\n\
+};\n\
+\n\
+jQuery(\"pop shift unshift\".split(\" \")).each(function(i, method) {\n\
+  return mutations.overrides[method] = function() {\n\
+    Array.prototype[method].apply(this, arguments);\n\
+    return this.object.observed.mutate.call(this.object, this.thread, method, this);\n\
+  };\n\
+});\n\
+\n\
+module.exports = notifierable;\n\
+\n\
+//# sourceURL=lib/legacy/notifierable.js"
+));
+
+require.register("observable/lib/legacy/schedulerable.js", Function("exports, module",
+"var lookup = require(\"observable/lib/lookup.js\");\n\
+var jQuery = require(\"component~jquery@1.9.1\");\n\
+var scheduler, schedulerable;\n\
+\n\
+scheduler = function(options) {\n\
+  var name, timeout, value;\n\
+\n\
+  if (options == null) {\n\
+    options = {};\n\
+  }\n\
+  timeout = null;\n\
+  for (name in options) {\n\
+    value = options[name];\n\
+    options[name] = {\n\
+      value: value\n\
+    };\n\
+  }\n\
+  jQuery.extend(options, {\n\
+    keypaths: {\n\
+      value: []\n\
+    },\n\
+    schedule: {\n\
+      value: function() {\n\
+        var deliver,\n\
+          _this = this;\n\
+\n\
+        deliver = function() {\n\
+          return _this.deliver();\n\
+        };\n\
+        clearTimeout(timeout);\n\
+        return timeout = setTimeout(deliver, 500 || options.wait);\n\
+      }\n\
+    }\n\
+  });\n\
+  return Object.create(scheduler.methods, options);\n\
+};\n\
+\n\
+jQuery.extend(scheduler, {\n\
+  methods: {\n\
+    property: function(object, keypath) {\n\
+      if (this.keypaths.indexOf(keypath) !== -1) {\n\
+        return;\n\
+      }\n\
+      this.keypaths.push(keypath);\n\
+      return Object.defineProperty(object, keypath, {\n\
+        get: this.getter(object, keypath),\n\
+        set: this.setter(object, keypath),\n\
+        enumerable: true,\n\
+        configurable: true\n\
+      });\n\
+    },\n\
+    deliver: function() {\n\
+      var keypath, observer, _ref;\n\
+\n\
+      _ref = this.target.observation.observers;\n\
+      for (keypath in _ref) {\n\
+        observer = _ref[keypath];\n\
+        observer.deliver();\n\
+      }\n\
+      return true;\n\
+    },\n\
+    setter: function(object, keypath, callback) {\n\
+      var current_setter;\n\
+\n\
+      current_setter = lookup.setter.call(object, keypath);\n\
+      if (current_setter) {\n\
+        return function(value) {\n\
+          current_setter.call(this, value);\n\
+          this.observed[keypath] = value;\n\
+          return this.observation.scheduler.schedule();\n\
+        };\n\
+      } else {\n\
+        return function(value) {\n\
+          this.observed[keypath] = value;\n\
+          return this.observation.scheduler.schedule();\n\
+        };\n\
+      }\n\
+    },\n\
+    getter: function(object, keypath) {\n\
+      var root_getter;\n\
+\n\
+      return lookup.getter.call(object, keypath) || (root_getter = function() {\n\
+        return this.observed[keypath];\n\
+      });\n\
+    },\n\
+    destroy: function() {\n\
+      return this.target = null;\n\
+    }\n\
+  }\n\
+});\n\
+\n\
+schedulerable = function(observable) {\n\
+  var original;\n\
+\n\
+  original = observable.methods.subscribe;\n\
+  observable.methods.subscribe = function(keypath, callback) {\n\
+    original.apply(this, arguments);\n\
+    return this.observation.scheduler.property(this, keypath);\n\
+  };\n\
+  return jQuery.extend((function() {\n\
+    var object;\n\
+\n\
+    object = observable.apply(this, arguments);\n\
+    object.observation.scheduler = scheduler({\n\
+      target: object\n\
+    });\n\
+    return object;\n\
+  }), observable);\n\
+};\n\
+\n\
+module.exports = schedulerable;\n\
+\n\
+//# sourceURL=lib/legacy/schedulerable.js"
+));
+
 require.register("observable/lib/lookup.js", Function("exports, module",
 "var lookup;\n\
 \n\
@@ -14406,131 +14672,224 @@ module.exports = lookup;\n\
 
 require.register("observable/lib/observable.js", Function("exports, module",
 "require(\"observable/lib/platform.js\");\n\
-var generator = require(\"observable/lib/generator.js\");\n\
 var jQuery = require(\"component~jquery@1.9.1\");\n\
-var fix_ignores, ignores, observable, observable_prototype, observable_publish, observable_subscribe, property, requiresDomElement;\n\
+var observation = require(\"observable/lib/observable/observation.js\");\n\
+var selection = require(\"observable/lib/observable/selection.js\");\n\
+var Observer = require(\"observable/lib/observable/observer.js\");\n\
+var observable;\n\
 \n\
-requiresDomElement = Object.defineProperty.requiresDomElement;\n\
+observable = function() {\n\
+  var object;\n\
 \n\
-observable_prototype = {\n\
-  subscribe: observable_subscribe = function(keypath, callback) {\n\
-    if (keypath === \"observed\") {\n\
-      throw new TypeError(\"observable.subscribe: cannot observe reserved property observed\");\n\
-    }\n\
-    if (jQuery.isArray(this[keypath])) {\n\
-      generator.mutations.call(this, keypath);\n\
-    }\n\
-    generator.observe.call(this, keypath, callback);\n\
-    return true;\n\
-  },\n\
-  unsubscribe: function(object, keypath, callback) {\n\
-    console.error(\"observable.unsubscribe not implemented yet.\");\n\
-    console.log(object, keypath, callback);\n\
-  },\n\
-  publish: observable_publish = function(keypath, value) {\n\
-    return this[keypath] = value;\n\
+  object = observable.select.apply(this, arguments);\n\
+  if (object.observation) {\n\
+    return;\n\
   }\n\
+  return jQuery.extend(observable.observe(object), observable.methods);\n\
 };\n\
 \n\
-if (requiresDomElement) {\n\
-  observable = function(object) {\n\
-    var fix;\n\
+jQuery.extend(observable, {\n\
+  select: selection(observable),\n\
+  observe: function(object) {\n\
+    return Object.defineProperty(object, \"observation\", {\n\
+      configurable: true,\n\
+      enumerable: false,\n\
+      value: observation(object)\n\
+    }, Object.defineProperty(object, \"observed\", {\n\
+      configurable: true,\n\
+      enumerable: false,\n\
+      value: {}\n\
+    }));\n\
+  },\n\
+  keypath: function(object, keypath) {\n\
+    var observer, observers;\n\
 \n\
-    fix = void 0;\n\
-    if (this.document && this.location) {\n\
-      if (!object) {\n\
-        object = {};\n\
+    observers = object.observation.observers;\n\
+    return observer = observers[keypath] || (observers[keypath] = new Observer(object, keypath));\n\
+  },\n\
+  unobserve: function(object) {\n\
+    var name, unobserved;\n\
+\n\
+    unobserved = {};\n\
+    for (name in observation.methods) {\n\
+      delete object[name];\n\
+    }\n\
+    object.observation.destroy();\n\
+    object.observation.scheduler.destroy();\n\
+    delete object.observation;\n\
+    delete object.observed;\n\
+    return unobserved;\n\
+  },\n\
+  methods: {\n\
+    subscribe: function(keypath, callback) {\n\
+      if (!this.observation.observers[keypath]) {\n\
+        observable.keypath(this, keypath);\n\
       }\n\
-    } else {\n\
-      if (object) {\n\
-        throw new TypeError(\"Two objects provided! Call either with observable.call(object) or observable(object), not with observable.call(param, param)\");\n\
-      } else {\n\
-        object = this;\n\
-      }\n\
+      return this.observation.add(keypath, callback);\n\
+    },\n\
+    unsubscribe: function(keypath, callback) {\n\
+      return this.observation[callback ? 'remove' : 'mute'](keypath, callback);\n\
+    },\n\
+    publish: function(keypath, value) {\n\
+      return this[keypath] = value;\n\
     }\n\
-    if (!jQuery.isReady) {\n\
-      throw new Error(\"observable.call: For compatibility reasons, observable can only be called when dom is loaded.\");\n\
-    }\n\
-    if (typeof object.nodeName !== \"string\") {\n\
-      fix = document.createElement(\"fix\");\n\
-      if (!jQuery.isReady) {\n\
-        jQuery(function() {\n\
-          document.body.appendChild(fix);\n\
-        });\n\
-      } else {\n\
-        document.body.appendChild(fix);\n\
-      }\n\
-      object = jQuery.extend(fix, object);\n\
-    }\n\
-    if (!object.observed) {\n\
-      generator.observable_for(object);\n\
-      object = jQuery.extend(object, observable_prototype);\n\
-    }\n\
-    return object;\n\
-  };\n\
-  ignores = document.createElement(\"fix\");\n\
-  fix_ignores = [];\n\
-  property = void 0;\n\
-  for (property in ignores) {\n\
-    fix_ignores.push(property);\n\
   }\n\
-  observable.ignores = fix_ignores;\n\
-} else {\n\
-  observable = function(object) {\n\
-    if (this === window) {\n\
-      if (!object) {\n\
-        object = {};\n\
-      }\n\
-    } else if (this !== window) {\n\
-      if (object) {\n\
-        throw new TypeError(\"Two objects provided! Call either with observable.call(object) or observable(object), not with observable.call(param, param)\");\n\
-      } else {\n\
-        object = this;\n\
-      }\n\
-    }\n\
-    if (!object.observed) {\n\
-      generator.observable_for(object);\n\
-    }\n\
-    return jQuery.extend(object, observable_prototype);\n\
-  };\n\
-  observable.ignores = [];\n\
+});\n\
+\n\
+if (!Object.observe) {\n\
+  var schedulerable = require(\"observable/lib/legacy/schedulerable.js\");\n\
+  observable = schedulerable(observable);\n\
 }\n\
-\n\
-observable.unobserve = function(object) {\n\
-  var name, subname, unobserved, value;\n\
-\n\
-  name = void 0;\n\
-  value = void 0;\n\
-  subname = void 0;\n\
-  unobserved = {};\n\
-  for (name in observable_prototype) {\n\
-    delete object[name];\n\
-  }\n\
-  for (name in object) {\n\
-    value = object[name];\n\
-    if (jQuery.type(value) === \"array\") {\n\
-      delete value.thread;\n\
-      delete value.object;\n\
-      delete value.key;\n\
-      for (subname in mutations.overrides) {\n\
-        delete value[subname];\n\
-      }\n\
-    }\n\
-  }\n\
-  for (name in object) {\n\
-    if (observable.ignores && observable.ignores.indexOf(name) === -1) {\n\
-      unobserved[name] = object[name];\n\
-    }\n\
-  }\n\
-  delete object.observed;\n\
-  return unobserved;\n\
-};\n\
 \n\
 observable.mixin = observable;\n\
 \n\
 module.exports = observable;\n\
 \n\
 //# sourceURL=lib/observable.js"
+));
+
+require.register("observable/lib/observable/observation.js", Function("exports, module",
+"var observation, observationable;\n\
+\n\
+observation = {\n\
+  add: function(keypath, callback) {\n\
+    return this.observers[keypath].add(callback);\n\
+  },\n\
+  remove: function(keypath, callback) {\n\
+    return this.observers[keypath].remove(callback);\n\
+  },\n\
+  mute: function(keypath) {\n\
+    this.observers[keypath].close();\n\
+    return delete this.observers[keypath];\n\
+  },\n\
+  destroy: function(keypath) {\n\
+    var observer, _ref;\n\
+\n\
+    _ref = this.observers;\n\
+    for (keypath in _ref) {\n\
+      observer = _ref[keypath];\n\
+      observer.close();\n\
+    }\n\
+    return delete this.observers;\n\
+  }\n\
+};\n\
+\n\
+observationable = function(object) {\n\
+  return Object.create(observation, {\n\
+    observers: {\n\
+      value: {}\n\
+    }\n\
+  });\n\
+};\n\
+\n\
+module.exports = observationable;\n\
+\n\
+//# sourceURL=lib/observable/observation.js"
+));
+
+require.register("observable/lib/observable/observer.js", Function("exports, module",
+"var PathObserver = require(\"observable/vendor/observe-js/observe.js\").PathObserver;\n\
+var Callbacks = require(\"component~jquery@1.9.1\").Callbacks;\n\
+var Observer,\n\
+  __hasProp = {}.hasOwnProperty,\n\
+  __extends = function(child, parent) { for (var key in parent) { if (__hasProp.call(parent, key)) child[key] = parent[key]; } function ctor() { this.constructor = child; } ctor.prototype = parent.prototype; child.prototype = new ctor(); child.__super__ = parent.prototype; return child; };\n\
+\n\
+Observer = (function(_super) {\n\
+  __extends(Observer, _super);\n\
+\n\
+  function Observer(object, keypath) {\n\
+    _super.call(this, object, keypath);\n\
+    this.callbacks = Callbacks();\n\
+    this.open((function() {\n\
+      return this.fireWith(object, arguments);\n\
+    }), this.callbacks);\n\
+  }\n\
+\n\
+  Observer.prototype.add = function(callback) {\n\
+    return this.callbacks.add(callback);\n\
+  };\n\
+\n\
+  Observer.prototype.remove = function() {\n\
+    var _ref;\n\
+\n\
+    return (_ref = this.callbacks).remove.apply(_ref, arguments);\n\
+  };\n\
+\n\
+  Observer.prototype.close = function() {\n\
+    Observer.__super__.close.apply(this, arguments);\n\
+    this.callbacks.empty();\n\
+    return delete this.callbacks;\n\
+  };\n\
+\n\
+  return Observer;\n\
+\n\
+})(PathObserver);\n\
+\n\
+module.exports = Observer;\n\
+\n\
+//# sourceURL=lib/observable/observer.js"
+));
+
+require.register("observable/lib/observable/selection.js", Function("exports, module",
+"var jQuery = require(\"component~jquery@1.9.1\");\n\
+var requiresDomElement, selection;\n\
+\n\
+requiresDomElement = Object.defineProperty.requiresDomElement;\n\
+\n\
+selection = function(observable) {\n\
+  if (requiresDomElement) {\n\
+    selection.generate_ignores(observable);\n\
+    return selection.legacy;\n\
+  } else {\n\
+    return selection.from_call;\n\
+  }\n\
+};\n\
+\n\
+selection.legacy = function() {\n\
+  var fix, object;\n\
+\n\
+  object = selection.from_call.apply(this, arguments);\n\
+  if (!jQuery.isReady) {\n\
+    throw new Error(\"observable.call: For compatibility reasons, observable can only be called when dom is loaded.\");\n\
+  }\n\
+  if (typeof object.nodeName !== \"string\") {\n\
+    fix = document.createElement(\"fix\");\n\
+    document.body.appendChild(fix);\n\
+    object = jQuery.extend(fix, object);\n\
+  }\n\
+  return object;\n\
+};\n\
+\n\
+selection.generate_ignores = function(observable) {\n\
+  var fix_ignores, ignores, property;\n\
+\n\
+  ignores = document.createElement(\"fix\");\n\
+  fix_ignores = [];\n\
+  property = void 0;\n\
+  for (property in ignores) {\n\
+    fix_ignores.push(property);\n\
+  }\n\
+  return observable.ignores = fix_ignores;\n\
+};\n\
+\n\
+selection.from_call = function(param) {\n\
+  var object;\n\
+\n\
+  if (this === window) {\n\
+    object = param || {};\n\
+  } else if (this !== window) {\n\
+    if (param) {\n\
+      throw new TypeError(\"Two objects provided! Call either with observable.call(object) or observable(object), not with observable.call(param, param)\");\n\
+    } else {\n\
+      object = this;\n\
+    }\n\
+  }\n\
+  return object;\n\
+};\n\
+\n\
+module.exports = selection;\n\
+\n\
+//# sourceURL=lib/observable/selection.js"
 ));
 
 require.register("observable/lib/platform.js", Function("exports, module",
@@ -14548,6 +14907,1646 @@ if (typeof require !== \"undefined\") {\n\
 }\n\
 \n\
 //# sourceURL=lib/platform.js"
+));
+
+require.register("observable/vendor/observe-js/observe.js", Function("exports, module",
+"// Copyright 2012 Google Inc.\n\
+//\n\
+// Licensed under the Apache License, Version 2.0 (the \"License\");\n\
+// you may not use this file except in compliance with the License.\n\
+// You may obtain a copy of the License at\n\
+//\n\
+//     http://www.apache.org/licenses/LICENSE-2.0\n\
+//\n\
+// Unless required by applicable law or agreed to in writing, software\n\
+// distributed under the License is distributed on an \"AS IS\" BASIS,\n\
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.\n\
+// See the License for the specific language governing permissions and\n\
+// limitations under the License.\n\
+\n\
+(function(global) {\n\
+  'use strict';\n\
+\n\
+  // Detect and do basic sanity checking on Object/Array.observe.\n\
+  function detectObjectObserve() {\n\
+    if (typeof Object.observe !== 'function' ||\n\
+        typeof Array.observe !== 'function') {\n\
+      return false;\n\
+    }\n\
+\n\
+    var records = [];\n\
+\n\
+    function callback(recs) {\n\
+      records = recs;\n\
+    }\n\
+\n\
+    var test = {};\n\
+    var arr = [];\n\
+    Object.observe(test, callback);\n\
+    Array.observe(arr, callback);\n\
+    test.id = 1;\n\
+    test.id = 2;\n\
+    delete test.id;\n\
+    arr.push(1, 2);\n\
+    arr.length = 0;\n\
+\n\
+    Object.deliverChangeRecords(callback);\n\
+    if (records.length !== 5)\n\
+      return false;\n\
+\n\
+    if (records[0].type != 'add' ||\n\
+        records[1].type != 'update' ||\n\
+        records[2].type != 'delete' ||\n\
+        records[3].type != 'splice' ||\n\
+        records[4].type != 'splice') {\n\
+      return false;\n\
+    }\n\
+\n\
+    Object.unobserve(test, callback);\n\
+    Array.unobserve(arr, callback);\n\
+\n\
+    return true;\n\
+  }\n\
+\n\
+  var hasObserve = detectObjectObserve();\n\
+\n\
+  function detectEval() {\n\
+    // Don't test for eval if we're running in a Chrome App environment.\n\
+    // We check for APIs set that only exist in a Chrome App context.\n\
+    if (typeof chrome !== 'undefined' && chrome.app && chrome.app.runtime) {\n\
+      return false;\n\
+    }\n\
+\n\
+    try {\n\
+      var f = new Function('', 'return true;');\n\
+      return f();\n\
+    } catch (ex) {\n\
+      return false;\n\
+    }\n\
+  }\n\
+\n\
+  var hasEval = detectEval();\n\
+\n\
+  function isIndex(s) {\n\
+    return +s === s >>> 0;\n\
+  }\n\
+\n\
+  function toNumber(s) {\n\
+    return +s;\n\
+  }\n\
+\n\
+  function isObject(obj) {\n\
+    return obj === Object(obj);\n\
+  }\n\
+\n\
+  var numberIsNaN = Number.isNaN || function isNaN(value) {\n\
+    return typeof value === 'number' && global.isNaN(value);\n\
+  }\n\
+\n\
+  function areSameValue(left, right) {\n\
+    if (left === right)\n\
+      return left !== 0 || 1 / left === 1 / right;\n\
+    if (numberIsNaN(left) && numberIsNaN(right))\n\
+      return true;\n\
+\n\
+    return left !== left && right !== right;\n\
+  }\n\
+\n\
+  var createObject = ('__proto__' in {}) ?\n\
+    function(obj) { return obj; } :\n\
+    function(obj) {\n\
+      var proto = obj.__proto__;\n\
+      if (!proto)\n\
+        return obj;\n\
+      var newObject = Object.create(proto);\n\
+      Object.getOwnPropertyNames(obj).forEach(function(name) {\n\
+        Object.defineProperty(newObject, name,\n\
+                             Object.getOwnPropertyDescriptor(obj, name));\n\
+      });\n\
+      return newObject;\n\
+    };\n\
+\n\
+  var identStart = '[\\$_a-zA-Z]';\n\
+  var identPart = '[\\$_a-zA-Z0-9]';\n\
+  var ident = identStart + '+' + identPart + '*';\n\
+  var elementIndex = '(?:[0-9]|[1-9]+[0-9]+)';\n\
+  var identOrElementIndex = '(?:' + ident + '|' + elementIndex + ')';\n\
+  var path = '(?:' + identOrElementIndex + ')(?:\\\\s*\\\\.\\\\s*' + identOrElementIndex + ')*';\n\
+  var pathRegExp = new RegExp('^' + path + '$');\n\
+\n\
+  function isPathValid(s) {\n\
+    if (typeof s != 'string')\n\
+      return false;\n\
+    s = s.trim();\n\
+\n\
+    if (s == '')\n\
+      return true;\n\
+\n\
+    if (s[0] == '.')\n\
+      return false;\n\
+\n\
+    return pathRegExp.test(s);\n\
+  }\n\
+\n\
+  var constructorIsPrivate = {};\n\
+\n\
+  function Path(s, privateToken) {\n\
+    if (privateToken !== constructorIsPrivate)\n\
+      throw Error('Use Path.get to retrieve path objects');\n\
+\n\
+    if (s.trim() == '')\n\
+      return this;\n\
+\n\
+    if (isIndex(s)) {\n\
+      this.push(s);\n\
+      return this;\n\
+    }\n\
+\n\
+    s.split(/\\s*\\.\\s*/).filter(function(part) {\n\
+      return part;\n\
+    }).forEach(function(part) {\n\
+      this.push(part);\n\
+    }, this);\n\
+\n\
+    if (hasEval && this.length) {\n\
+      this.getValueFrom = this.compiledGetValueFromFn();\n\
+    }\n\
+  }\n\
+\n\
+  // TODO(rafaelw): Make simple LRU cache\n\
+  var pathCache = {};\n\
+\n\
+  function getPath(pathString) {\n\
+    if (pathString instanceof Path)\n\
+      return pathString;\n\
+\n\
+    if (pathString == null)\n\
+      pathString = '';\n\
+\n\
+    if (typeof pathString !== 'string')\n\
+      pathString = String(pathString);\n\
+\n\
+    var path = pathCache[pathString];\n\
+    if (path)\n\
+      return path;\n\
+    if (!isPathValid(pathString))\n\
+      return invalidPath;\n\
+    var path = new Path(pathString, constructorIsPrivate);\n\
+    pathCache[pathString] = path;\n\
+    return path;\n\
+  }\n\
+\n\
+  Path.get = getPath;\n\
+\n\
+  Path.prototype = createObject({\n\
+    __proto__: [],\n\
+    valid: true,\n\
+\n\
+    toString: function() {\n\
+      return this.join('.');\n\
+    },\n\
+\n\
+    getValueFrom: function(obj, directObserver) {\n\
+      for (var i = 0; i < this.length; i++) {\n\
+        if (obj == null)\n\
+          return;\n\
+        obj = obj[this[i]];\n\
+      }\n\
+      return obj;\n\
+    },\n\
+\n\
+    iterateObjects: function(obj, observe) {\n\
+      for (var i = 0; i < this.length; i++) {\n\
+        if (i)\n\
+          obj = obj[this[i - 1]];\n\
+        if (!isObject(obj))\n\
+          return;\n\
+        observe(obj, this[0]);\n\
+      }\n\
+    },\n\
+\n\
+    compiledGetValueFromFn: function() {\n\
+      var accessors = this.map(function(ident) {\n\
+        return isIndex(ident) ? '[\"' + ident + '\"]' : '.' + ident;\n\
+      });\n\
+\n\
+      var str = '';\n\
+      var pathString = 'obj';\n\
+      str += 'if (obj != null';\n\
+      var i = 0;\n\
+      for (; i < (this.length - 1); i++) {\n\
+        var ident = this[i];\n\
+        pathString += accessors[i];\n\
+        str += ' &&\\n\
+     ' + pathString + ' != null';\n\
+      }\n\
+      str += ')\\n\
+';\n\
+\n\
+      pathString += accessors[i];\n\
+\n\
+      str += '  return ' + pathString + ';\\n\
+else\\n\
+  return undefined;';\n\
+      return new Function('obj', str);\n\
+    },\n\
+\n\
+    setValueFrom: function(obj, value) {\n\
+      if (!this.length)\n\
+        return false;\n\
+\n\
+      for (var i = 0; i < this.length - 1; i++) {\n\
+        if (!isObject(obj))\n\
+          return false;\n\
+        obj = obj[this[i]];\n\
+      }\n\
+\n\
+      if (!isObject(obj))\n\
+        return false;\n\
+\n\
+      obj[this[i]] = value;\n\
+      return true;\n\
+    }\n\
+  });\n\
+\n\
+  var invalidPath = new Path('', constructorIsPrivate);\n\
+  invalidPath.valid = false;\n\
+  invalidPath.getValueFrom = invalidPath.setValueFrom = function() {};\n\
+\n\
+  var MAX_DIRTY_CHECK_CYCLES = 1000;\n\
+\n\
+  function dirtyCheck(observer) {\n\
+    var cycles = 0;\n\
+    while (cycles < MAX_DIRTY_CHECK_CYCLES && observer.check_()) {\n\
+      cycles++;\n\
+    }\n\
+    if (global.testingExposeCycleCount)\n\
+      global.dirtyCheckCycleCount = cycles;\n\
+\n\
+    return cycles > 0;\n\
+  }\n\
+\n\
+  function objectIsEmpty(object) {\n\
+    for (var prop in object)\n\
+      return false;\n\
+    return true;\n\
+  }\n\
+\n\
+  function diffIsEmpty(diff) {\n\
+    return objectIsEmpty(diff.added) &&\n\
+           objectIsEmpty(diff.removed) &&\n\
+           objectIsEmpty(diff.changed);\n\
+  }\n\
+\n\
+  function diffObjectFromOldObject(object, oldObject) {\n\
+    var added = {};\n\
+    var removed = {};\n\
+    var changed = {};\n\
+\n\
+    for (var prop in oldObject) {\n\
+      var newValue = object[prop];\n\
+\n\
+      if (newValue !== undefined && newValue === oldObject[prop])\n\
+        continue;\n\
+\n\
+      if (!(prop in object)) {\n\
+        removed[prop] = undefined;\n\
+        continue;\n\
+      }\n\
+\n\
+      if (newValue !== oldObject[prop])\n\
+        changed[prop] = newValue;\n\
+    }\n\
+\n\
+    for (var prop in object) {\n\
+      if (prop in oldObject)\n\
+        continue;\n\
+\n\
+      added[prop] = object[prop];\n\
+    }\n\
+\n\
+    if (Array.isArray(object) && object.length !== oldObject.length)\n\
+      changed.length = object.length;\n\
+\n\
+    return {\n\
+      added: added,\n\
+      removed: removed,\n\
+      changed: changed\n\
+    };\n\
+  }\n\
+\n\
+  var eomTasks = [];\n\
+  function runEOMTasks() {\n\
+    if (!eomTasks.length)\n\
+      return false;\n\
+\n\
+    for (var i = 0; i < eomTasks.length; i++) {\n\
+      eomTasks[i]();\n\
+    }\n\
+    eomTasks.length = 0;\n\
+    return true;\n\
+  }\n\
+\n\
+  var runEOM = hasObserve ? (function(){\n\
+    var eomObj = { pingPong: true };\n\
+    var eomRunScheduled = false;\n\
+\n\
+    Object.observe(eomObj, function() {\n\
+      runEOMTasks();\n\
+      eomRunScheduled = false;\n\
+    });\n\
+\n\
+    return function(fn) {\n\
+      eomTasks.push(fn);\n\
+      if (!eomRunScheduled) {\n\
+        eomRunScheduled = true;\n\
+        eomObj.pingPong = !eomObj.pingPong;\n\
+      }\n\
+    };\n\
+  })() :\n\
+  (function() {\n\
+    return function(fn) {\n\
+      eomTasks.push(fn);\n\
+    };\n\
+  })();\n\
+\n\
+  var observedObjectCache = [];\n\
+\n\
+  function newObservedObject() {\n\
+    var observer;\n\
+    var object;\n\
+    var discardRecords = false;\n\
+    var first = true;\n\
+\n\
+    function callback(records) {\n\
+      if (observer && observer.state_ === OPENED && !discardRecords)\n\
+        observer.check_(records);\n\
+    }\n\
+\n\
+    return {\n\
+      open: function(obs) {\n\
+        if (observer)\n\
+          throw Error('ObservedObject in use');\n\
+\n\
+        if (!first)\n\
+          Object.deliverChangeRecords(callback);\n\
+\n\
+        observer = obs;\n\
+        first = false;\n\
+      },\n\
+      observe: function(obj, arrayObserve) {\n\
+        object = obj;\n\
+        if (arrayObserve)\n\
+          Array.observe(object, callback);\n\
+        else\n\
+          Object.observe(object, callback);\n\
+      },\n\
+      deliver: function(discard) {\n\
+        discardRecords = discard;\n\
+        Object.deliverChangeRecords(callback);\n\
+        discardRecords = false;\n\
+      },\n\
+      close: function() {\n\
+        observer = undefined;\n\
+        Object.unobserve(object, callback);\n\
+        observedObjectCache.push(this);\n\
+      }\n\
+    };\n\
+  }\n\
+\n\
+  /*\n\
+   * The observedSet abstraction is a perf optimization which reduces the total\n\
+   * number of Object.observe observations of a set of objects. The idea is that\n\
+   * groups of Observers will have some object dependencies in common and this\n\
+   * observed set ensures that each object in the transitive closure of\n\
+   * dependencies is only observed once. The observedSet acts as a write barrier\n\
+   * such that whenever any change comes through, all Observers are checked for\n\
+   * changed values.\n\
+   *\n\
+   * Note that this optimization is explicitly moving work from setup-time to\n\
+   * change-time.\n\
+   *\n\
+   * TODO(rafaelw): Implement \"garbage collection\". In order to move work off\n\
+   * the critical path, when Observers are closed, their observed objects are\n\
+   * not Object.unobserve(d). As a result, it's possible that if the observedSet\n\
+   * is kept open, but some Observers have been closed, it could cause \"leaks\"\n\
+   * (prevent otherwise collectable objects from being collected). At some\n\
+   * point, we should implement incremental \"gc\" which keeps a list of\n\
+   * observedSets which may need clean-up and does small amounts of cleanup on a\n\
+   * timeout until all is clean.\n\
+   */\n\
+\n\
+  function getObservedObject(observer, object, arrayObserve) {\n\
+    var dir = observedObjectCache.pop() || newObservedObject();\n\
+    dir.open(observer);\n\
+    dir.observe(object, arrayObserve);\n\
+    return dir;\n\
+  }\n\
+\n\
+  var observedSetCache = [];\n\
+\n\
+  function newObservedSet() {\n\
+    var observerCount = 0;\n\
+    var observers = [];\n\
+    var objects = [];\n\
+    var rootObj;\n\
+    var rootObjProps;\n\
+\n\
+    function observe(obj, prop) {\n\
+      if (!obj)\n\
+        return;\n\
+\n\
+      if (obj === rootObj)\n\
+        rootObjProps[prop] = true;\n\
+\n\
+      if (objects.indexOf(obj) < 0) {\n\
+        objects.push(obj);\n\
+        Object.observe(obj, callback);\n\
+      }\n\
+\n\
+      observe(Object.getPrototypeOf(obj), prop);\n\
+    }\n\
+\n\
+    function allRootObjNonObservedProps(recs) {\n\
+      for (var i = 0; i < recs.length; i++) {\n\
+        var rec = recs[i];\n\
+        if (rec.object !== rootObj ||\n\
+            rootObjProps[rec.name] ||\n\
+            rec.type === 'setPrototype') {\n\
+          return false;\n\
+        }\n\
+      }\n\
+      return true;\n\
+    }\n\
+\n\
+    function callback(recs) {\n\
+      if (allRootObjNonObservedProps(recs))\n\
+        return;\n\
+\n\
+      var observer;\n\
+      for (var i = 0; i < observers.length; i++) {\n\
+        observer = observers[i];\n\
+        if (observer.state_ == OPENED) {\n\
+          observer.iterateObjects_(observe);\n\
+        }\n\
+      }\n\
+\n\
+      for (var i = 0; i < observers.length; i++) {\n\
+        observer = observers[i];\n\
+        if (observer.state_ == OPENED) {\n\
+          observer.check_();\n\
+        }\n\
+      }\n\
+    }\n\
+\n\
+    var record = {\n\
+      object: undefined,\n\
+      objects: objects,\n\
+      open: function(obs, object) {\n\
+        if (!rootObj) {\n\
+          rootObj = object;\n\
+          rootObjProps = {};\n\
+        }\n\
+\n\
+        observers.push(obs);\n\
+        observerCount++;\n\
+        obs.iterateObjects_(observe);\n\
+      },\n\
+      close: function(obs) {\n\
+        observerCount--;\n\
+        if (observerCount > 0) {\n\
+          return;\n\
+        }\n\
+\n\
+        for (var i = 0; i < objects.length; i++) {\n\
+          Object.unobserve(objects[i], callback);\n\
+          Observer.unobservedCount++;\n\
+        }\n\
+\n\
+        observers.length = 0;\n\
+        objects.length = 0;\n\
+        rootObj = undefined;\n\
+        rootObjProps = undefined;\n\
+        observedSetCache.push(this);\n\
+      }\n\
+    };\n\
+\n\
+    return record;\n\
+  }\n\
+\n\
+  var lastObservedSet;\n\
+\n\
+  function getObservedSet(observer, obj) {\n\
+    if (!lastObservedSet || lastObservedSet.object !== obj) {\n\
+      lastObservedSet = observedSetCache.pop() || newObservedSet();\n\
+      lastObservedSet.object = obj;\n\
+    }\n\
+    lastObservedSet.open(observer, obj);\n\
+    return lastObservedSet;\n\
+  }\n\
+\n\
+  var UNOPENED = 0;\n\
+  var OPENED = 1;\n\
+  var CLOSED = 2;\n\
+  var RESETTING = 3;\n\
+\n\
+  var nextObserverId = 1;\n\
+\n\
+  function Observer() {\n\
+    this.state_ = UNOPENED;\n\
+    this.callback_ = undefined;\n\
+    this.target_ = undefined; // TODO(rafaelw): Should be WeakRef\n\
+    this.directObserver_ = undefined;\n\
+    this.value_ = undefined;\n\
+    this.id_ = nextObserverId++;\n\
+  }\n\
+\n\
+  Observer.prototype = {\n\
+    open: function(callback, target) {\n\
+      if (this.state_ != UNOPENED)\n\
+        throw Error('Observer has already been opened.');\n\
+\n\
+      addToAll(this);\n\
+      this.callback_ = callback;\n\
+      this.target_ = target;\n\
+      this.connect_();\n\
+      this.state_ = OPENED;\n\
+      return this.value_;\n\
+    },\n\
+\n\
+    close: function() {\n\
+      if (this.state_ != OPENED)\n\
+        return;\n\
+\n\
+      removeFromAll(this);\n\
+      this.disconnect_();\n\
+      this.value_ = undefined;\n\
+      this.callback_ = undefined;\n\
+      this.target_ = undefined;\n\
+      this.state_ = CLOSED;\n\
+    },\n\
+\n\
+    deliver: function() {\n\
+      if (this.state_ != OPENED)\n\
+        return;\n\
+\n\
+      dirtyCheck(this);\n\
+    },\n\
+\n\
+    report_: function(changes) {\n\
+      try {\n\
+        this.callback_.apply(this.target_, changes);\n\
+      } catch (ex) {\n\
+        Observer._errorThrownDuringCallback = true;\n\
+        console.error('Exception caught during observer callback: ' +\n\
+                       (ex.stack || ex));\n\
+      }\n\
+    },\n\
+\n\
+    discardChanges: function() {\n\
+      this.check_(undefined, true);\n\
+      return this.value_;\n\
+    }\n\
+  }\n\
+\n\
+  var collectObservers = !hasObserve;\n\
+  var allObservers;\n\
+  Observer._allObserversCount = 0;\n\
+\n\
+  if (collectObservers) {\n\
+    allObservers = [];\n\
+  }\n\
+\n\
+  function addToAll(observer) {\n\
+    Observer._allObserversCount++;\n\
+    if (!collectObservers)\n\
+      return;\n\
+\n\
+    allObservers.push(observer);\n\
+  }\n\
+\n\
+  function removeFromAll(observer) {\n\
+    Observer._allObserversCount--;\n\
+  }\n\
+\n\
+  var runningMicrotaskCheckpoint = false;\n\
+\n\
+  var hasDebugForceFullDelivery = hasObserve && (function() {\n\
+    try {\n\
+      eval('%RunMicrotasks()');\n\
+      return true;\n\
+    } catch (ex) {\n\
+      return false;\n\
+    }\n\
+  })();\n\
+\n\
+  global.Platform = global.Platform || {};\n\
+\n\
+  global.Platform.performMicrotaskCheckpoint = function() {\n\
+    if (runningMicrotaskCheckpoint)\n\
+      return;\n\
+\n\
+    if (hasDebugForceFullDelivery) {\n\
+      eval('%RunMicrotasks()');\n\
+      return;\n\
+    }\n\
+\n\
+    if (!collectObservers)\n\
+      return;\n\
+\n\
+    runningMicrotaskCheckpoint = true;\n\
+\n\
+    var cycles = 0;\n\
+    var anyChanged, toCheck;\n\
+\n\
+    do {\n\
+      cycles++;\n\
+      toCheck = allObservers;\n\
+      allObservers = [];\n\
+      anyChanged = false;\n\
+\n\
+      for (var i = 0; i < toCheck.length; i++) {\n\
+        var observer = toCheck[i];\n\
+        if (observer.state_ != OPENED)\n\
+          continue;\n\
+\n\
+        if (observer.check_())\n\
+          anyChanged = true;\n\
+\n\
+        allObservers.push(observer);\n\
+      }\n\
+      if (runEOMTasks())\n\
+        anyChanged = true;\n\
+    } while (cycles < MAX_DIRTY_CHECK_CYCLES && anyChanged);\n\
+\n\
+    if (global.testingExposeCycleCount)\n\
+      global.dirtyCheckCycleCount = cycles;\n\
+\n\
+    runningMicrotaskCheckpoint = false;\n\
+  };\n\
+\n\
+  if (collectObservers) {\n\
+    global.Platform.clearObservers = function() {\n\
+      allObservers = [];\n\
+    };\n\
+  }\n\
+\n\
+  function ObjectObserver(object) {\n\
+    Observer.call(this);\n\
+    this.value_ = object;\n\
+    this.oldObject_ = undefined;\n\
+  }\n\
+\n\
+  ObjectObserver.prototype = createObject({\n\
+    __proto__: Observer.prototype,\n\
+\n\
+    arrayObserve: false,\n\
+\n\
+    connect_: function(callback, target) {\n\
+      if (hasObserve) {\n\
+        this.directObserver_ = getObservedObject(this, this.value_,\n\
+                                                 this.arrayObserve);\n\
+      } else {\n\
+        this.oldObject_ = this.copyObject(this.value_);\n\
+      }\n\
+\n\
+    },\n\
+\n\
+    copyObject: function(object) {\n\
+      var copy = Array.isArray(object) ? [] : {};\n\
+      for (var prop in object) {\n\
+        copy[prop] = object[prop];\n\
+      };\n\
+      if (Array.isArray(object))\n\
+        copy.length = object.length;\n\
+      return copy;\n\
+    },\n\
+\n\
+    check_: function(changeRecords, skipChanges) {\n\
+      var diff;\n\
+      var oldValues;\n\
+      if (hasObserve) {\n\
+        if (!changeRecords)\n\
+          return false;\n\
+\n\
+        oldValues = {};\n\
+        diff = diffObjectFromChangeRecords(this.value_, changeRecords,\n\
+                                           oldValues);\n\
+      } else {\n\
+        oldValues = this.oldObject_;\n\
+        diff = diffObjectFromOldObject(this.value_, this.oldObject_);\n\
+      }\n\
+\n\
+      if (diffIsEmpty(diff))\n\
+        return false;\n\
+\n\
+      if (!hasObserve)\n\
+        this.oldObject_ = this.copyObject(this.value_);\n\
+\n\
+      this.report_([\n\
+        diff.added || {},\n\
+        diff.removed || {},\n\
+        diff.changed || {},\n\
+        function(property) {\n\
+          return oldValues[property];\n\
+        }\n\
+      ]);\n\
+\n\
+      return true;\n\
+    },\n\
+\n\
+    disconnect_: function() {\n\
+      if (hasObserve) {\n\
+        this.directObserver_.close();\n\
+        this.directObserver_ = undefined;\n\
+      } else {\n\
+        this.oldObject_ = undefined;\n\
+      }\n\
+    },\n\
+\n\
+    deliver: function() {\n\
+      if (this.state_ != OPENED)\n\
+        return;\n\
+\n\
+      if (hasObserve)\n\
+        this.directObserver_.deliver(false);\n\
+      else\n\
+        dirtyCheck(this);\n\
+    },\n\
+\n\
+    discardChanges: function() {\n\
+      if (this.directObserver_)\n\
+        this.directObserver_.deliver(true);\n\
+      else\n\
+        this.oldObject_ = this.copyObject(this.value_);\n\
+\n\
+      return this.value_;\n\
+    }\n\
+  });\n\
+\n\
+  function ArrayObserver(array) {\n\
+    if (!Array.isArray(array))\n\
+      throw Error('Provided object is not an Array');\n\
+    ObjectObserver.call(this, array);\n\
+  }\n\
+\n\
+  ArrayObserver.prototype = createObject({\n\
+\n\
+    __proto__: ObjectObserver.prototype,\n\
+\n\
+    arrayObserve: true,\n\
+\n\
+    copyObject: function(arr) {\n\
+      return arr.slice();\n\
+    },\n\
+\n\
+    check_: function(changeRecords) {\n\
+      var splices;\n\
+      if (hasObserve) {\n\
+        if (!changeRecords)\n\
+          return false;\n\
+        splices = projectArraySplices(this.value_, changeRecords);\n\
+      } else {\n\
+        splices = calcSplices(this.value_, 0, this.value_.length,\n\
+                              this.oldObject_, 0, this.oldObject_.length);\n\
+      }\n\
+\n\
+      if (!splices || !splices.length)\n\
+        return false;\n\
+\n\
+      if (!hasObserve)\n\
+        this.oldObject_ = this.copyObject(this.value_);\n\
+\n\
+      this.report_([splices]);\n\
+      return true;\n\
+    }\n\
+  });\n\
+\n\
+  ArrayObserver.applySplices = function(previous, current, splices) {\n\
+    splices.forEach(function(splice) {\n\
+      var spliceArgs = [splice.index, splice.removed.length];\n\
+      var addIndex = splice.index;\n\
+      while (addIndex < splice.index + splice.addedCount) {\n\
+        spliceArgs.push(current[addIndex]);\n\
+        addIndex++;\n\
+      }\n\
+\n\
+      Array.prototype.splice.apply(previous, spliceArgs);\n\
+    });\n\
+  };\n\
+\n\
+  function PathObserver(object, path) {\n\
+    Observer.call(this);\n\
+\n\
+    this.object_ = object;\n\
+    this.path_ = getPath(path);\n\
+    this.directObserver_ = undefined;\n\
+  }\n\
+\n\
+  PathObserver.prototype = createObject({\n\
+    __proto__: Observer.prototype,\n\
+\n\
+    connect_: function() {\n\
+      if (hasObserve)\n\
+        this.directObserver_ = getObservedSet(this, this.object_);\n\
+\n\
+      this.check_(undefined, true);\n\
+    },\n\
+\n\
+    disconnect_: function() {\n\
+      this.value_ = undefined;\n\
+\n\
+      if (this.directObserver_) {\n\
+        this.directObserver_.close(this);\n\
+        this.directObserver_ = undefined;\n\
+      }\n\
+    },\n\
+\n\
+    iterateObjects_: function(observe) {\n\
+      this.path_.iterateObjects(this.object_, observe);\n\
+    },\n\
+\n\
+    check_: function(changeRecords, skipChanges) {\n\
+      var oldValue = this.value_;\n\
+      this.value_ = this.path_.getValueFrom(this.object_);\n\
+      if (skipChanges || areSameValue(this.value_, oldValue))\n\
+        return false;\n\
+\n\
+      this.report_([this.value_, oldValue]);\n\
+      return true;\n\
+    },\n\
+\n\
+    setValue: function(newValue) {\n\
+      if (this.path_)\n\
+        this.path_.setValueFrom(this.object_, newValue);\n\
+    }\n\
+  });\n\
+\n\
+  function CompoundObserver(reportChangesOnOpen) {\n\
+    Observer.call(this);\n\
+\n\
+    this.reportChangesOnOpen_ = reportChangesOnOpen;\n\
+    this.value_ = [];\n\
+    this.directObserver_ = undefined;\n\
+    this.observed_ = [];\n\
+  }\n\
+\n\
+  var observerSentinel = {};\n\
+\n\
+  CompoundObserver.prototype = createObject({\n\
+    __proto__: Observer.prototype,\n\
+\n\
+    connect_: function() {\n\
+      if (hasObserve) {\n\
+        var object;\n\
+        var needsDirectObserver = false;\n\
+        for (var i = 0; i < this.observed_.length; i += 2) {\n\
+          object = this.observed_[i]\n\
+          if (object !== observerSentinel) {\n\
+            needsDirectObserver = true;\n\
+            break;\n\
+          }\n\
+        }\n\
+\n\
+        if (needsDirectObserver)\n\
+          this.directObserver_ = getObservedSet(this, object);\n\
+      }\n\
+\n\
+      this.check_(undefined, !this.reportChangesOnOpen_);\n\
+    },\n\
+\n\
+    disconnect_: function() {\n\
+      for (var i = 0; i < this.observed_.length; i += 2) {\n\
+        if (this.observed_[i] === observerSentinel)\n\
+          this.observed_[i + 1].close();\n\
+      }\n\
+      this.observed_.length = 0;\n\
+      this.value_.length = 0;\n\
+\n\
+      if (this.directObserver_) {\n\
+        this.directObserver_.close(this);\n\
+        this.directObserver_ = undefined;\n\
+      }\n\
+    },\n\
+\n\
+    addPath: function(object, path) {\n\
+      if (this.state_ != UNOPENED && this.state_ != RESETTING)\n\
+        throw Error('Cannot add paths once started.');\n\
+\n\
+      var path = getPath(path);\n\
+      this.observed_.push(object, path);\n\
+      if (!this.reportChangesOnOpen_)\n\
+        return;\n\
+      var index = this.observed_.length / 2 - 1;\n\
+      this.value_[index] = path.getValueFrom(object);\n\
+    },\n\
+\n\
+    addObserver: function(observer) {\n\
+      if (this.state_ != UNOPENED && this.state_ != RESETTING)\n\
+        throw Error('Cannot add observers once started.');\n\
+\n\
+      this.observed_.push(observerSentinel, observer);\n\
+      if (!this.reportChangesOnOpen_)\n\
+        return;\n\
+      var index = this.observed_.length / 2 - 1;\n\
+      this.value_[index] = observer.open(this.deliver, this);\n\
+    },\n\
+\n\
+    startReset: function() {\n\
+      if (this.state_ != OPENED)\n\
+        throw Error('Can only reset while open');\n\
+\n\
+      this.state_ = RESETTING;\n\
+      this.disconnect_();\n\
+    },\n\
+\n\
+    finishReset: function() {\n\
+      if (this.state_ != RESETTING)\n\
+        throw Error('Can only finishReset after startReset');\n\
+      this.state_ = OPENED;\n\
+      this.connect_();\n\
+\n\
+      return this.value_;\n\
+    },\n\
+\n\
+    iterateObjects_: function(observe) {\n\
+      var object;\n\
+      for (var i = 0; i < this.observed_.length; i += 2) {\n\
+        object = this.observed_[i]\n\
+        if (object !== observerSentinel)\n\
+          this.observed_[i + 1].iterateObjects(object, observe)\n\
+      }\n\
+    },\n\
+\n\
+    check_: function(changeRecords, skipChanges) {\n\
+      var oldValues;\n\
+      for (var i = 0; i < this.observed_.length; i += 2) {\n\
+        var object = this.observed_[i];\n\
+        var path = this.observed_[i+1];\n\
+        var value;\n\
+        if (object === observerSentinel) {\n\
+          var observable = path;\n\
+          value = this.state_ === UNOPENED ?\n\
+              observable.open(this.deliver, this) :\n\
+              observable.discardChanges();\n\
+        } else {\n\
+          value = path.getValueFrom(object);\n\
+        }\n\
+\n\
+        if (skipChanges) {\n\
+          this.value_[i / 2] = value;\n\
+          continue;\n\
+        }\n\
+\n\
+        if (areSameValue(value, this.value_[i / 2]))\n\
+          continue;\n\
+\n\
+        oldValues = oldValues || [];\n\
+        oldValues[i / 2] = this.value_[i / 2];\n\
+        this.value_[i / 2] = value;\n\
+      }\n\
+\n\
+      if (!oldValues)\n\
+        return false;\n\
+\n\
+      // TODO(rafaelw): Having observed_ as the third callback arg here is\n\
+      // pretty lame API. Fix.\n\
+      this.report_([this.value_, oldValues, this.observed_]);\n\
+      return true;\n\
+    }\n\
+  });\n\
+\n\
+  function identFn(value) { return value; }\n\
+\n\
+  function ObserverTransform(observable, getValueFn, setValueFn,\n\
+                             dontPassThroughSet) {\n\
+    this.callback_ = undefined;\n\
+    this.target_ = undefined;\n\
+    this.value_ = undefined;\n\
+    this.observable_ = observable;\n\
+    this.getValueFn_ = getValueFn || identFn;\n\
+    this.setValueFn_ = setValueFn || identFn;\n\
+    // TODO(rafaelw): This is a temporary hack. PolymerExpressions needs this\n\
+    // at the moment because of a bug in it's dependency tracking.\n\
+    this.dontPassThroughSet_ = dontPassThroughSet;\n\
+  }\n\
+\n\
+  ObserverTransform.prototype = {\n\
+    open: function(callback, target) {\n\
+      this.callback_ = callback;\n\
+      this.target_ = target;\n\
+      this.value_ =\n\
+          this.getValueFn_(this.observable_.open(this.observedCallback_, this));\n\
+      return this.value_;\n\
+    },\n\
+\n\
+    observedCallback_: function(value) {\n\
+      value = this.getValueFn_(value);\n\
+      if (areSameValue(value, this.value_))\n\
+        return;\n\
+      var oldValue = this.value_;\n\
+      this.value_ = value;\n\
+      this.callback_.call(this.target_, this.value_, oldValue);\n\
+    },\n\
+\n\
+    discardChanges: function() {\n\
+      this.value_ = this.getValueFn_(this.observable_.discardChanges());\n\
+      return this.value_;\n\
+    },\n\
+\n\
+    deliver: function() {\n\
+      return this.observable_.deliver();\n\
+    },\n\
+\n\
+    setValue: function(value) {\n\
+      value = this.setValueFn_(value);\n\
+      if (!this.dontPassThroughSet_ && this.observable_.setValue)\n\
+        return this.observable_.setValue(value);\n\
+    },\n\
+\n\
+    close: function() {\n\
+      if (this.observable_)\n\
+        this.observable_.close();\n\
+      this.callback_ = undefined;\n\
+      this.target_ = undefined;\n\
+      this.observable_ = undefined;\n\
+      this.value_ = undefined;\n\
+      this.getValueFn_ = undefined;\n\
+      this.setValueFn_ = undefined;\n\
+    }\n\
+  }\n\
+\n\
+  var expectedRecordTypes = {\n\
+    add: true,\n\
+    update: true,\n\
+    delete: true\n\
+  };\n\
+\n\
+ var updateRecord = {\n\
+    object: undefined,\n\
+    type: 'update',\n\
+    name: undefined,\n\
+    oldValue: undefined\n\
+  };\n\
+\n\
+  function notify(object, name, value, oldValue) {\n\
+    if (areSameValue(value, oldValue))\n\
+      return;\n\
+\n\
+    // TODO(rafaelw): Hack hack hack. This entire code really needs to move\n\
+    // out of observe-js into polymer.\n\
+    if (typeof object.propertyChanged_ == 'function')\n\
+      object.propertyChanged_(name, value, oldValue);\n\
+\n\
+    if (!hasObserve)\n\
+      return;\n\
+\n\
+    var notifier = object.notifier_;\n\
+    if (!notifier)\n\
+      notifier = object.notifier_ = Object.getNotifier(object);\n\
+\n\
+    updateRecord.object = object;\n\
+    updateRecord.name = name;\n\
+    updateRecord.oldValue = oldValue;\n\
+\n\
+    notifier.notify(updateRecord);\n\
+  }\n\
+\n\
+  Observer.createBindablePrototypeAccessor = function(proto, name) {\n\
+    var privateName = name + '_';\n\
+    var privateObservable  = name + 'Observable_';\n\
+\n\
+    proto[privateName] = proto[name];\n\
+\n\
+    Object.defineProperty(proto, name, {\n\
+      get: function() {\n\
+        var observable = this[privateObservable];\n\
+        if (observable)\n\
+          observable.deliver();\n\
+\n\
+        return this[privateName];\n\
+      },\n\
+      set: function(value) {\n\
+        var observable = this[privateObservable];\n\
+        if (observable) {\n\
+          observable.setValue(value);\n\
+          return;\n\
+        }\n\
+\n\
+        var oldValue = this[privateName];\n\
+        this[privateName] = value;\n\
+        notify(this, name, value, oldValue);\n\
+\n\
+        return value;\n\
+      },\n\
+      configurable: true\n\
+    });\n\
+  }\n\
+\n\
+  Observer.bindToInstance = function(instance, name, observable, resolveFn) {\n\
+    var privateName = name + '_';\n\
+    var privateObservable  = name + 'Observable_';\n\
+\n\
+    instance[privateObservable] = observable;\n\
+    var oldValue = instance[privateName];\n\
+    var value = observable.open(function(value, oldValue) {\n\
+      instance[privateName] = value;\n\
+      notify(instance, name, value, oldValue);\n\
+    });\n\
+\n\
+    if (resolveFn && !areSameValue(oldValue, value)) {\n\
+      var resolvedValue = resolveFn(oldValue, value);\n\
+      if (!areSameValue(value, resolvedValue)) {\n\
+        value = resolvedValue;\n\
+        if (observable.setValue)\n\
+          observable.setValue(value);\n\
+      }\n\
+    }\n\
+\n\
+    instance[privateName] = value;\n\
+    notify(instance, name, value, oldValue);\n\
+\n\
+    return {\n\
+      close: function() {\n\
+        observable.close();\n\
+        instance[privateObservable] = undefined;\n\
+      }\n\
+    };\n\
+  }\n\
+\n\
+  function diffObjectFromChangeRecords(object, changeRecords, oldValues) {\n\
+    var added = {};\n\
+    var removed = {};\n\
+\n\
+    for (var i = 0; i < changeRecords.length; i++) {\n\
+      var record = changeRecords[i];\n\
+      if (!expectedRecordTypes[record.type]) {\n\
+        console.error('Unknown changeRecord type: ' + record.type);\n\
+        console.error(record);\n\
+        continue;\n\
+      }\n\
+\n\
+      if (!(record.name in oldValues))\n\
+        oldValues[record.name] = record.oldValue;\n\
+\n\
+      if (record.type == 'update')\n\
+        continue;\n\
+\n\
+      if (record.type == 'add') {\n\
+        if (record.name in removed)\n\
+          delete removed[record.name];\n\
+        else\n\
+          added[record.name] = true;\n\
+\n\
+        continue;\n\
+      }\n\
+\n\
+      // type = 'delete'\n\
+      if (record.name in added) {\n\
+        delete added[record.name];\n\
+        delete oldValues[record.name];\n\
+      } else {\n\
+        removed[record.name] = true;\n\
+      }\n\
+    }\n\
+\n\
+    for (var prop in added)\n\
+      added[prop] = object[prop];\n\
+\n\
+    for (var prop in removed)\n\
+      removed[prop] = undefined;\n\
+\n\
+    var changed = {};\n\
+    for (var prop in oldValues) {\n\
+      if (prop in added || prop in removed)\n\
+        continue;\n\
+\n\
+      var newValue = object[prop];\n\
+      if (oldValues[prop] !== newValue)\n\
+        changed[prop] = newValue;\n\
+    }\n\
+\n\
+    return {\n\
+      added: added,\n\
+      removed: removed,\n\
+      changed: changed\n\
+    };\n\
+  }\n\
+\n\
+  function newSplice(index, removed, addedCount) {\n\
+    return {\n\
+      index: index,\n\
+      removed: removed,\n\
+      addedCount: addedCount\n\
+    };\n\
+  }\n\
+\n\
+  var EDIT_LEAVE = 0;\n\
+  var EDIT_UPDATE = 1;\n\
+  var EDIT_ADD = 2;\n\
+  var EDIT_DELETE = 3;\n\
+\n\
+  function ArraySplice() {}\n\
+\n\
+  ArraySplice.prototype = {\n\
+\n\
+    // Note: This function is *based* on the computation of the Levenshtein\n\
+    // \"edit\" distance. The one change is that \"updates\" are treated as two\n\
+    // edits - not one. With Array splices, an update is really a delete\n\
+    // followed by an add. By retaining this, we optimize for \"keeping\" the\n\
+    // maximum array items in the original array. For example:\n\
+    //\n\
+    //   'xxxx123' -> '123yyyy'\n\
+    //\n\
+    // With 1-edit updates, the shortest path would be just to update all seven\n\
+    // characters. With 2-edit updates, we delete 4, leave 3, and add 4. This\n\
+    // leaves the substring '123' intact.\n\
+    calcEditDistances: function(current, currentStart, currentEnd,\n\
+                                old, oldStart, oldEnd) {\n\
+      // \"Deletion\" columns\n\
+      var rowCount = oldEnd - oldStart + 1;\n\
+      var columnCount = currentEnd - currentStart + 1;\n\
+      var distances = new Array(rowCount);\n\
+\n\
+      // \"Addition\" rows. Initialize null column.\n\
+      for (var i = 0; i < rowCount; i++) {\n\
+        distances[i] = new Array(columnCount);\n\
+        distances[i][0] = i;\n\
+      }\n\
+\n\
+      // Initialize null row\n\
+      for (var j = 0; j < columnCount; j++)\n\
+        distances[0][j] = j;\n\
+\n\
+      for (var i = 1; i < rowCount; i++) {\n\
+        for (var j = 1; j < columnCount; j++) {\n\
+          if (this.equals(current[currentStart + j - 1], old[oldStart + i - 1]))\n\
+            distances[i][j] = distances[i - 1][j - 1];\n\
+          else {\n\
+            var north = distances[i - 1][j] + 1;\n\
+            var west = distances[i][j - 1] + 1;\n\
+            distances[i][j] = north < west ? north : west;\n\
+          }\n\
+        }\n\
+      }\n\
+\n\
+      return distances;\n\
+    },\n\
+\n\
+    // This starts at the final weight, and walks \"backward\" by finding\n\
+    // the minimum previous weight recursively until the origin of the weight\n\
+    // matrix.\n\
+    spliceOperationsFromEditDistances: function(distances) {\n\
+      var i = distances.length - 1;\n\
+      var j = distances[0].length - 1;\n\
+      var current = distances[i][j];\n\
+      var edits = [];\n\
+      while (i > 0 || j > 0) {\n\
+        if (i == 0) {\n\
+          edits.push(EDIT_ADD);\n\
+          j--;\n\
+          continue;\n\
+        }\n\
+        if (j == 0) {\n\
+          edits.push(EDIT_DELETE);\n\
+          i--;\n\
+          continue;\n\
+        }\n\
+        var northWest = distances[i - 1][j - 1];\n\
+        var west = distances[i - 1][j];\n\
+        var north = distances[i][j - 1];\n\
+\n\
+        var min;\n\
+        if (west < north)\n\
+          min = west < northWest ? west : northWest;\n\
+        else\n\
+          min = north < northWest ? north : northWest;\n\
+\n\
+        if (min == northWest) {\n\
+          if (northWest == current) {\n\
+            edits.push(EDIT_LEAVE);\n\
+          } else {\n\
+            edits.push(EDIT_UPDATE);\n\
+            current = northWest;\n\
+          }\n\
+          i--;\n\
+          j--;\n\
+        } else if (min == west) {\n\
+          edits.push(EDIT_DELETE);\n\
+          i--;\n\
+          current = west;\n\
+        } else {\n\
+          edits.push(EDIT_ADD);\n\
+          j--;\n\
+          current = north;\n\
+        }\n\
+      }\n\
+\n\
+      edits.reverse();\n\
+      return edits;\n\
+    },\n\
+\n\
+    /**\n\
+     * Splice Projection functions:\n\
+     *\n\
+     * A splice map is a representation of how a previous array of items\n\
+     * was transformed into a new array of items. Conceptually it is a list of\n\
+     * tuples of\n\
+     *\n\
+     *   <index, removed, addedCount>\n\
+     *\n\
+     * which are kept in ascending index order of. The tuple represents that at\n\
+     * the |index|, |removed| sequence of items were removed, and counting forward\n\
+     * from |index|, |addedCount| items were added.\n\
+     */\n\
+\n\
+    /**\n\
+     * Lacking individual splice mutation information, the minimal set of\n\
+     * splices can be synthesized given the previous state and final state of an\n\
+     * array. The basic approach is to calculate the edit distance matrix and\n\
+     * choose the shortest path through it.\n\
+     *\n\
+     * Complexity: O(l * p)\n\
+     *   l: The length of the current array\n\
+     *   p: The length of the old array\n\
+     */\n\
+    calcSplices: function(current, currentStart, currentEnd,\n\
+                          old, oldStart, oldEnd) {\n\
+      var prefixCount = 0;\n\
+      var suffixCount = 0;\n\
+\n\
+      var minLength = Math.min(currentEnd - currentStart, oldEnd - oldStart);\n\
+      if (currentStart == 0 && oldStart == 0)\n\
+        prefixCount = this.sharedPrefix(current, old, minLength);\n\
+\n\
+      if (currentEnd == current.length && oldEnd == old.length)\n\
+        suffixCount = this.sharedSuffix(current, old, minLength - prefixCount);\n\
+\n\
+      currentStart += prefixCount;\n\
+      oldStart += prefixCount;\n\
+      currentEnd -= suffixCount;\n\
+      oldEnd -= suffixCount;\n\
+\n\
+      if (currentEnd - currentStart == 0 && oldEnd - oldStart == 0)\n\
+        return [];\n\
+\n\
+      if (currentStart == currentEnd) {\n\
+        var splice = newSplice(currentStart, [], 0);\n\
+        while (oldStart < oldEnd)\n\
+          splice.removed.push(old[oldStart++]);\n\
+\n\
+        return [ splice ];\n\
+      } else if (oldStart == oldEnd)\n\
+        return [ newSplice(currentStart, [], currentEnd - currentStart) ];\n\
+\n\
+      var ops = this.spliceOperationsFromEditDistances(\n\
+          this.calcEditDistances(current, currentStart, currentEnd,\n\
+                                 old, oldStart, oldEnd));\n\
+\n\
+      var splice = undefined;\n\
+      var splices = [];\n\
+      var index = currentStart;\n\
+      var oldIndex = oldStart;\n\
+      for (var i = 0; i < ops.length; i++) {\n\
+        switch(ops[i]) {\n\
+          case EDIT_LEAVE:\n\
+            if (splice) {\n\
+              splices.push(splice);\n\
+              splice = undefined;\n\
+            }\n\
+\n\
+            index++;\n\
+            oldIndex++;\n\
+            break;\n\
+          case EDIT_UPDATE:\n\
+            if (!splice)\n\
+              splice = newSplice(index, [], 0);\n\
+\n\
+            splice.addedCount++;\n\
+            index++;\n\
+\n\
+            splice.removed.push(old[oldIndex]);\n\
+            oldIndex++;\n\
+            break;\n\
+          case EDIT_ADD:\n\
+            if (!splice)\n\
+              splice = newSplice(index, [], 0);\n\
+\n\
+            splice.addedCount++;\n\
+            index++;\n\
+            break;\n\
+          case EDIT_DELETE:\n\
+            if (!splice)\n\
+              splice = newSplice(index, [], 0);\n\
+\n\
+            splice.removed.push(old[oldIndex]);\n\
+            oldIndex++;\n\
+            break;\n\
+        }\n\
+      }\n\
+\n\
+      if (splice) {\n\
+        splices.push(splice);\n\
+      }\n\
+      return splices;\n\
+    },\n\
+\n\
+    sharedPrefix: function(current, old, searchLength) {\n\
+      for (var i = 0; i < searchLength; i++)\n\
+        if (!this.equals(current[i], old[i]))\n\
+          return i;\n\
+      return searchLength;\n\
+    },\n\
+\n\
+    sharedSuffix: function(current, old, searchLength) {\n\
+      var index1 = current.length;\n\
+      var index2 = old.length;\n\
+      var count = 0;\n\
+      while (count < searchLength && this.equals(current[--index1], old[--index2]))\n\
+        count++;\n\
+\n\
+      return count;\n\
+    },\n\
+\n\
+    calculateSplices: function(current, previous) {\n\
+      return this.calcSplices(current, 0, current.length, previous, 0,\n\
+                              previous.length);\n\
+    },\n\
+\n\
+    equals: function(currentValue, previousValue) {\n\
+      return currentValue === previousValue;\n\
+    }\n\
+  };\n\
+\n\
+  var arraySplice = new ArraySplice();\n\
+\n\
+  function calcSplices(current, currentStart, currentEnd,\n\
+                       old, oldStart, oldEnd) {\n\
+    return arraySplice.calcSplices(current, currentStart, currentEnd,\n\
+                                   old, oldStart, oldEnd);\n\
+  }\n\
+\n\
+  function intersect(start1, end1, start2, end2) {\n\
+    // Disjoint\n\
+    if (end1 < start2 || end2 < start1)\n\
+      return -1;\n\
+\n\
+    // Adjacent\n\
+    if (end1 == start2 || end2 == start1)\n\
+      return 0;\n\
+\n\
+    // Non-zero intersect, span1 first\n\
+    if (start1 < start2) {\n\
+      if (end1 < end2)\n\
+        return end1 - start2; // Overlap\n\
+      else\n\
+        return end2 - start2; // Contained\n\
+    } else {\n\
+      // Non-zero intersect, span2 first\n\
+      if (end2 < end1)\n\
+        return end2 - start1; // Overlap\n\
+      else\n\
+        return end1 - start1; // Contained\n\
+    }\n\
+  }\n\
+\n\
+  function mergeSplice(splices, index, removed, addedCount) {\n\
+\n\
+    var splice = newSplice(index, removed, addedCount);\n\
+\n\
+    var inserted = false;\n\
+    var insertionOffset = 0;\n\
+\n\
+    for (var i = 0; i < splices.length; i++) {\n\
+      var current = splices[i];\n\
+      current.index += insertionOffset;\n\
+\n\
+      if (inserted)\n\
+        continue;\n\
+\n\
+      var intersectCount = intersect(splice.index,\n\
+                                     splice.index + splice.removed.length,\n\
+                                     current.index,\n\
+                                     current.index + current.addedCount);\n\
+\n\
+      if (intersectCount >= 0) {\n\
+        // Merge the two splices\n\
+\n\
+        splices.splice(i, 1);\n\
+        i--;\n\
+\n\
+        insertionOffset -= current.addedCount - current.removed.length;\n\
+\n\
+        splice.addedCount += current.addedCount - intersectCount;\n\
+        var deleteCount = splice.removed.length +\n\
+                          current.removed.length - intersectCount;\n\
+\n\
+        if (!splice.addedCount && !deleteCount) {\n\
+          // merged splice is a noop. discard.\n\
+          inserted = true;\n\
+        } else {\n\
+          var removed = current.removed;\n\
+\n\
+          if (splice.index < current.index) {\n\
+            // some prefix of splice.removed is prepended to current.removed.\n\
+            var prepend = splice.removed.slice(0, current.index - splice.index);\n\
+            Array.prototype.push.apply(prepend, removed);\n\
+            removed = prepend;\n\
+          }\n\
+\n\
+          if (splice.index + splice.removed.length > current.index + current.addedCount) {\n\
+            // some suffix of splice.removed is appended to current.removed.\n\
+            var append = splice.removed.slice(current.index + current.addedCount - splice.index);\n\
+            Array.prototype.push.apply(removed, append);\n\
+          }\n\
+\n\
+          splice.removed = removed;\n\
+          if (current.index < splice.index) {\n\
+            splice.index = current.index;\n\
+          }\n\
+        }\n\
+      } else if (splice.index < current.index) {\n\
+        // Insert splice here.\n\
+\n\
+        inserted = true;\n\
+\n\
+        splices.splice(i, 0, splice);\n\
+        i++;\n\
+\n\
+        var offset = splice.addedCount - splice.removed.length\n\
+        current.index += offset;\n\
+        insertionOffset += offset;\n\
+      }\n\
+    }\n\
+\n\
+    if (!inserted)\n\
+      splices.push(splice);\n\
+  }\n\
+\n\
+  function createInitialSplices(array, changeRecords) {\n\
+    var splices = [];\n\
+\n\
+    for (var i = 0; i < changeRecords.length; i++) {\n\
+      var record = changeRecords[i];\n\
+      switch(record.type) {\n\
+        case 'splice':\n\
+          mergeSplice(splices, record.index, record.removed.slice(), record.addedCount);\n\
+          break;\n\
+        case 'add':\n\
+        case 'update':\n\
+        case 'delete':\n\
+          if (!isIndex(record.name))\n\
+            continue;\n\
+          var index = toNumber(record.name);\n\
+          if (index < 0)\n\
+            continue;\n\
+          mergeSplice(splices, index, [record.oldValue], 1);\n\
+          break;\n\
+        default:\n\
+          console.error('Unexpected record type: ' + JSON.stringify(record));\n\
+          break;\n\
+      }\n\
+    }\n\
+\n\
+    return splices;\n\
+  }\n\
+\n\
+  function projectArraySplices(array, changeRecords) {\n\
+    var splices = [];\n\
+\n\
+    createInitialSplices(array, changeRecords).forEach(function(splice) {\n\
+      if (splice.addedCount == 1 && splice.removed.length == 1) {\n\
+        if (splice.removed[0] !== array[splice.index])\n\
+          splices.push(splice);\n\
+\n\
+        return\n\
+      };\n\
+\n\
+      splices = splices.concat(calcSplices(array, splice.index, splice.index + splice.addedCount,\n\
+                                           splice.removed, 0, splice.removed.length));\n\
+    });\n\
+\n\
+    return splices;\n\
+  }\n\
+\n\
+  global.Observer = Observer;\n\
+  global.Observer.runEOM_ = runEOM;\n\
+  global.Observer.observerSentinel_ = observerSentinel; // for testing.\n\
+  global.Observer.hasObjectObserve = hasObserve;\n\
+  global.ArrayObserver = ArrayObserver;\n\
+  global.ArrayObserver.calculateSplices = function(current, previous) {\n\
+    return arraySplice.calculateSplices(current, previous);\n\
+  };\n\
+\n\
+  global.ArraySplice = ArraySplice;\n\
+  global.ObjectObserver = ObjectObserver;\n\
+  global.PathObserver = PathObserver;\n\
+  global.CompoundObserver = CompoundObserver;\n\
+  global.Path = Path;\n\
+  global.ObserverTransform = ObserverTransform;\n\
+})(typeof global !== 'undefined' && global && typeof module !== 'undefined' && module ? exports || global : this || window);\n\
+\n\
+//# sourceURL=vendor/observe-js/observe.js"
 ));
 
 require.register("observable/vendor/shims/accessors-legacy.js", Function("exports, module",

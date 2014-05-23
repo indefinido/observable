@@ -1,137 +1,77 @@
-# TODO Better keypath support
-
 # Shim older needed features
 `import 'observable/lib/platform.js'`
-`import generator from 'observable/lib/generator.js'`
-`import jQuery    from 'jQuery' `
-
+# TODO remove jquery dependency
+`import jQuery from 'jquery'`
 # Observable Implementation
-{requiresDomElement} = Object.defineProperty
+`import observation from 'observable/lib/observable/observation.js'`
+`import selection   from 'observable/lib/observable/selection.js'`
+`import Observer    from 'observable/lib/observable/observer.js'`
 
-observable_prototype =
-  subscribe: observable_subscribe = (keypath, callback) ->
-    throw new TypeError("observable.subscribe: cannot observe reserved property observed")  if keypath is "observed"
-    generator.mutations.call this, keypath  if jQuery.isArray(this[keypath])
-    generator.observe.call this, keypath, callback
-    true
 
-  unsubscribe: (object, keypath, callback) ->
-    console.error "observable.unsubscribe not implemented yet."
-    console.log object, keypath, callback
-    return
+observable = ->
+  object = observable.select.apply @, arguments
 
-  publish: observable_publish = (keypath, value) ->
+  return if object.observation
 
-    # TODO actually call callbacks
-    this[keypath] = value
+  jQuery.extend observable.observe(object), observable.methods
 
-if requiresDomElement
-  observable = (object) ->
-    fix = undefined
+jQuery.extend observable,
+  select: selection observable
 
-    # observable() or observable(object)
-    if @document and @location
-      object = {}  unless object
+  observe: (object) ->
 
-    # observable.call(...)
-    else
+    # Observers storage
+    Object.defineProperty object, "observation",
+      configurable: true
+      enumerable: false
+      value: observation object
 
-      # observable.call(param, param)
-      if object
-        throw new TypeError("Two objects provided! Call either with observable.call(object) or observable(object), not with observable.call(param, param)")
+    # Actual properties value storage, and for backwards compatibility
+      # TODO implement warning on this property
+      Object.defineProperty object, "observed",
+        configurable: true
+        enumerable: false
+        value: {}
 
-      # observable.call(object)
-      else
-        object = this
+  keypath: (object, keypath) ->
+    {observation: {observers}} = object
+    observer = observers[keypath] ||= new Observer object, keypath
 
-    # TODO better documentation
-    throw new Error("observable.call: For compatibility reasons, observable can only be called when dom is loaded.")  unless jQuery.isReady
+  unobserve: (object) ->
+    unobserved = {}
 
-    # Create dom element if object isn't one
-    unless typeof object.nodeName is "string"
-      fix = document.createElement("fix")
-      unless jQuery.isReady
-        jQuery ->
-          document.body.appendChild fix
-          return
+    # TODO remove root setter and root getter and callbacks from
+    # callback thread
 
-      else
-        document.body.appendChild fix
+    # Remove mixed in properties
+    for name of observation.methods
+      delete object[name]
 
-      # Replace object with dom node
-      object = jQuery.extend(fix, object)
+    object.observation.destroy()
+    object.observation.scheduler.destroy()
+    delete object.observation
+    delete object.observed
 
-    # Observe element if it is not observed
-    # TODO remove jquery dependency
-    unless object.observed
-      generator.observable_for object
-      object = jQuery.extend object, observable_prototype
+    unobserved
 
-    object
+  methods:
+    # TODO when rivets updates, start using array observer
+    subscribe: (keypath, callback) ->
+      observable.keypath @, keypath unless @observation.observers[keypath]
+      @observation.add keypath, callback
 
-  ignores = document.createElement("fix")
-  fix_ignores = []
-  property = undefined
-  for property of ignores
-    fix_ignores.push property
-  observable.ignores = fix_ignores
-else
-  observable = (object) ->
+    unsubscribe: (keypath, callback) ->
+      @observation[if callback then 'remove' else 'mute'] keypath, callback
 
-    # observable() or observable(object)
-    if this is window
-      object = {}  unless object
+    publish: (keypath, value) ->
+      # TODO put option to force microtask execution
+      @[keypath] = value
 
-    # observable.call(...)
-    else if this isnt window
-
-      # observable.call(param, param)
-      if object
-        throw new TypeError("Two objects provided! Call either with observable.call(object) or observable(object), not with observable.call(param, param)")
-
-      # observable.call(object)
-      else
-        object = this
-
-    generator.observable_for object  unless object.observed
-    jQuery.extend object, observable_prototype
-
-  observable.ignores = []
-
-observable.unobserve = (object) ->
-  name = undefined
-  value = undefined
-  subname = undefined
-  unobserved = {}
-
-  # TODO remove root setter and root getter and callbacks from
-  # callback thread
-
-  # Remove mixed in properties
-  for name of observable_prototype
-    delete object[name]
-
-  # Remove array properties overrides
-  for name of object
-    value = object[name]
-    if jQuery.type(value) is "array"
-      delete value.thread
-
-      delete value.object
-
-      delete value.key
-
-      for subname of mutations.overrides
-        delete value[subname]
-
-  for name of object
-
-    # TODO put Array.indexOf as a dependency
-    unobserved[name] = object[name]  if observable.ignores and observable.ignores.indexOf(name) is -1
-  delete object.observed
-
-  unobserved
-
+# We import the scheduler for automatically schedulling microtask
+# executions when polymer does not have the Object.observe
+unless Object.observe
+  `import schedulerable from 'observable/lib/legacy/schedulerable.js'`
+  observable = schedulerable observable
 
 # For compatibility reasons only
 observable.mixin = observable

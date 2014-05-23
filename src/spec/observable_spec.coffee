@@ -1,12 +1,24 @@
 # TODO figure out how to require all specs at once, and then move to
 # es6 modules and component with the tests
 root       = exports ? window
+Platform   = require("observable/vendor/observe-js/observe.js").Platform
 
-describe 'observable #()',  ->
+
+describe 'observable #()', ->
   return unless root.should
 
   beforeEach ->
     @object = property: 'value'
+    @wait   = (callback, time = 800) => setTimeout callback, time
+
+
+  it 'should create a observation property', ->
+    @object.should.not.have.property 'observation'
+
+    @object = observable @object
+
+    @object.should.have.property 'observation'
+
 
   it 'should create a observed property', ->
     @object.should.not.have.property 'observed'
@@ -21,26 +33,43 @@ describe 'observable #()',  ->
       @object = observable {}
       @spy    = sinon.spy()
 
-    it 'should subscribe to property', ->
-      @object.subscribe 'other', @spy
-
-      @object.other = 'mafagafo'
-      @spy.called.should.be.true
-
-    it 'should let multiple function subscriptions to property', ->
-      second_spy = sinon.spy()
-
-      @object.subscribe 'other', @spy
-      @object.subscribe 'other', second_spy
+    it 'should schedule object observers check', (done) ->
+      # Will execute sometime in the future
+      @object.subscribe 'other', -> done()
 
       @object.other = 'mafagafo'
 
-      @spy.called.should.be.true
-      second_spy.called.should.be.true
+    describe 'when key', ->
+      it 'should subscribe to property', (done) ->
+        @object.subscribe 'other', @spy
 
-    describe 'subscribes to properties of type array', ->
+        @object.other = 'mafagafo'
 
-      it 'should observe objects added to array', ->
+        @wait =>
+          @spy.called.should.be.true
+          done()
+
+      it 'should let multiple function subscriptions to property', (done) ->
+        second_spy = sinon.spy()
+
+        @object.subscribe 'other', @spy
+        @object.subscribe 'other', second_spy
+
+        @object.other = 'mafagafo'
+
+        @wait =>
+          @spy.called.should.be.true
+          second_spy.called.should.be.true
+          done()
+
+    describe 'when keypath', ->
+      xit 'should subscribe to property', (done) ->
+
+    # TODO wait for rivets to implement array observer
+    describe 'when array', ->
+      xit 'should subscribe to property', (done) ->
+
+      xit 'should observe objects added to array', ->
         friend = {id: 1}
 
         # TODO implement a one time setter to solve this
@@ -62,7 +91,7 @@ describe 'observable #()',  ->
         @spy.callCount.should.be.eq 1
 
       xit 'should override native methods'
-      it 'should preserve array bindings when setting new array', ->
+      xit 'should preserve array bindings when setting new array', ->
         @object.friends = []
         @object.subscribe 'friends', @spy
 
@@ -86,15 +115,17 @@ describe 'observable #()',  ->
       @object = observable {}
       @spy    = sinon.spy()
 
-    it 'should remove all listeners from property', ->
+    it 'should remove all listeners from property', (done) ->
       @object.subscribe 'property', @spy
       @object.unsubscribe 'property'
 
       @object.property = 'value'
 
-      @spy.called.should.be.false
+      @wait =>
+        @spy.called.should.be.false
+        done()
 
-    it 'should remove only the specified listener from queue', ->
+    it 'should remove only the specified listener from queue', (done) ->
       second_spy = sinon.spy()
       @object.subscribe 'property'  , @spy
       @object.subscribe 'property'  , second_spy
@@ -103,5 +134,7 @@ describe 'observable #()',  ->
 
       @object.property = 'value'
 
-      @spy.called.should.be.false
-      second_spy.called.should.be.true
+      @wait =>
+        @spy.called.should.be.false
+        second_spy.called.should.be.true
+        done()
