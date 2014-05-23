@@ -1,5 +1,5 @@
 # TODO transform look up into getOwnPropertyDescriptor Shim
-`import lookup from 'observable/lib/lookup.js'`
+`import lookup from '../lookup.js'`
 `import jQuery from 'jquery'`
 
 scheduler = (options = {}) ->

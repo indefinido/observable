@@ -70,7 +70,7 @@ jQuery.extend observable,
 # We import the scheduler for automatically schedulling microtask
 # executions when polymer does not have the Object.observe
 unless Object.observe
-  `import schedulerable from 'observable/lib/legacy/schedulerable.js'`
+  `import schedulerable from './legacy/schedulerable.js'`
   observable = schedulerable observable
 
 # For compatibility reasons only

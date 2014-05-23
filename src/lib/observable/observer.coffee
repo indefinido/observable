@@ -1,4 +1,4 @@
-`import {PathObserver} from 'observable/vendor/observe-js/observe.js'`
+`import {PathObserver} from '../../vendor/observe-js/observe.js'`
 # TODO implement jQuery.Callbacks functionality as a component separately
 `import {Callbacks} from 'jquery'`
 
