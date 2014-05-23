@@ -10005,7 +10005,8 @@ require("observable/lib/platform.js");
 var jQuery = require("component~jquery@1.9.1");
 var observation = require("observable/lib/observable/observation.js");
 var selection = require("observable/lib/observable/selection.js");
-var Observer = require("observable/lib/observable/observer.js");
+var KeypathObserver = require("observable/lib/observable/keypath_observer.js");
+var SelfObserver = require("observable/lib/observable/self_observer.js");
 var observable;
 
 observable = function() {
@@ -10031,11 +10032,17 @@ jQuery.extend(observable, {
       value: {}
     }));
   },
+  self: function(object) {
+    var observer, observers;
+
+    observers = object.observation.observers;
+    return observer = observers.self || (observers.self = new SelfObserver(object));
+  },
   keypath: function(object, keypath) {
     var observer, observers;
 
     observers = object.observation.observers;
-    return observer = observers[keypath] || (observers[keypath] = new Observer(object, keypath));
+    return observer = observers[keypath] || (observers[keypath] = new KeypathObserver(object, keypath));
   },
   unobserve: function(object) {
     var name, unobserved;
@@ -10054,11 +10061,17 @@ jQuery.extend(observable, {
     return unobserved;
   },
   methods: {
-    subscribe: function(keypath, callback) {
-      if (!this.observation.observers[keypath]) {
-        observable.keypath(this, keypath);
+    subscribe: function(keypath_or_callback, callback) {
+      var observer;
+
+      switch (arguments.length) {
+        case 1:
+          observer = observable.self(this);
+          return this.observation.add('self', keypath_or_callback);
+        case 2:
+          observable.keypath(this, keypath_or_callback);
+          return this.observation.add(keypath_or_callback, callback);
       }
-      return this.observation.add(keypath, callback);
     },
     unsubscribe: function(keypath, callback) {
       return this.observation[callback ? 'remove' : 'mute'](keypath, callback);
@@ -10078,6 +10091,48 @@ if (!Object.observe) {
 observable.mixin = observable;
 
 module.exports = observable;
+
+});
+
+require.register("observable/lib/observable/keypath_observer.js", function (exports, module) {
+var PathObserver = require("observable/vendor/observe-js/observe.js").PathObserver;
+var Callbacks = require("component~jquery@1.9.1").Callbacks;
+var KeypathObserver,
+  __hasProp = {}.hasOwnProperty,
+  __extends = function(child, parent) { for (var key in parent) { if (__hasProp.call(parent, key)) child[key] = parent[key]; } function ctor() { this.constructor = child; } ctor.prototype = parent.prototype; child.prototype = new ctor(); child.__super__ = parent.prototype; return child; };
+
+KeypathObserver = (function(_super) {
+  __extends(KeypathObserver, _super);
+
+  function KeypathObserver(object, keypath) {
+    _super.call(this, object, keypath);
+    this.callbacks = Callbacks();
+    this.open((function() {
+      return this.fireWith(object, arguments);
+    }), this.callbacks);
+  }
+
+  KeypathObserver.prototype.add = function(callback) {
+    return this.callbacks.add(callback);
+  };
+
+  KeypathObserver.prototype.remove = function() {
+    var _ref;
+
+    return (_ref = this.callbacks).remove.apply(_ref, arguments);
+  };
+
+  KeypathObserver.prototype.close = function() {
+    KeypathObserver.__super__.close.apply(this, arguments);
+    this.callbacks.empty();
+    return delete this.callbacks;
+  };
+
+  return KeypathObserver;
+
+})(PathObserver);
+
+module.exports = KeypathObserver;
 
 });
 
@@ -10116,48 +10171,6 @@ observationable = function(object) {
 };
 
 module.exports = observationable;
-
-});
-
-require.register("observable/lib/observable/observer.js", function (exports, module) {
-var PathObserver = require("observable/vendor/observe-js/observe.js").PathObserver;
-var Callbacks = require("component~jquery@1.9.1").Callbacks;
-var Observer,
-  __hasProp = {}.hasOwnProperty,
-  __extends = function(child, parent) { for (var key in parent) { if (__hasProp.call(parent, key)) child[key] = parent[key]; } function ctor() { this.constructor = child; } ctor.prototype = parent.prototype; child.prototype = new ctor(); child.__super__ = parent.prototype; return child; };
-
-Observer = (function(_super) {
-  __extends(Observer, _super);
-
-  function Observer(object, keypath) {
-    _super.call(this, object, keypath);
-    this.callbacks = Callbacks();
-    this.open((function() {
-      return this.fireWith(object, arguments);
-    }), this.callbacks);
-  }
-
-  Observer.prototype.add = function(callback) {
-    return this.callbacks.add(callback);
-  };
-
-  Observer.prototype.remove = function() {
-    var _ref;
-
-    return (_ref = this.callbacks).remove.apply(_ref, arguments);
-  };
-
-  Observer.prototype.close = function() {
-    Observer.__super__.close.apply(this, arguments);
-    this.callbacks.empty();
-    return delete this.callbacks;
-  };
-
-  return Observer;
-
-})(PathObserver);
-
-module.exports = Observer;
 
 });
 
@@ -10219,6 +10232,48 @@ selection.from_call = function(param) {
 };
 
 module.exports = selection;
+
+});
+
+require.register("observable/lib/observable/self_observer.js", function (exports, module) {
+var ObjectObserver = require("observable/vendor/observe-js/observe.js").ObjectObserver;
+var Callbacks = require("component~jquery@1.9.1").Callbacks;
+var SelfObserver,
+  __hasProp = {}.hasOwnProperty,
+  __extends = function(child, parent) { for (var key in parent) { if (__hasProp.call(parent, key)) child[key] = parent[key]; } function ctor() { this.constructor = child; } ctor.prototype = parent.prototype; child.prototype = new ctor(); child.__super__ = parent.prototype; return child; };
+
+SelfObserver = (function(_super) {
+  __extends(SelfObserver, _super);
+
+  function SelfObserver(object) {
+    _super.call(this, object);
+    this.callbacks = Callbacks();
+    this.open((function() {
+      return this.fireWith(object, arguments);
+    }), this.callbacks);
+  }
+
+  SelfObserver.prototype.add = function(callback) {
+    return this.callbacks.add(callback);
+  };
+
+  SelfObserver.prototype.remove = function() {
+    var _ref;
+
+    return (_ref = this.callbacks).remove.apply(_ref, arguments);
+  };
+
+  SelfObserver.prototype.close = function() {
+    SelfObserver.__super__.close.apply(this, arguments);
+    this.callbacks.empty();
+    return delete this.callbacks;
+  };
+
+  return SelfObserver;
+
+})(ObjectObserver);
+
+module.exports = SelfObserver;
 
 });
 

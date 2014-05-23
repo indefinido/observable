@@ -36,6 +36,14 @@ describe('observable #()', function() {
       this.object = observable({});
       return this.spy = sinon.spy();
     });
+    it('should throw error with wrong parameters type', function() {
+      expect(function() {
+        return this.object.subscribe();
+      }).to["throw"](Error);
+      return expect(function() {
+        return this.object.subscribe('asdas');
+      }).to["throw"](Error);
+    });
     it('should schedule object observers check', function(done) {
       this.object.subscribe('other', function() {
         return done();
@@ -64,6 +72,31 @@ describe('observable #()', function() {
         return this.wait(function() {
           _this.spy.called.should.be["true"];
           second_spy.called.should.be["true"];
+          return done();
+        });
+      });
+    });
+    describe('when object', function() {
+      it('should report any changes', function() {
+        var _this = this;
+
+        this.object.subscribe(function() {
+          return _this.spy();
+        });
+        this.object.domo = 10;
+        Platform.performMicrotaskCheckpoint();
+        return this.spy.called.should.be["true"];
+      });
+      return it('should schedule changes reporting when know properties are mixed', function(done) {
+        var _this = this;
+
+        this.object.subscribe('domo', function() {});
+        this.object.subscribe(function() {
+          return _this.spy();
+        });
+        this.object.domo = 10;
+        return this.wait(function() {
+          _this.spy.called.should.be["true"];
           return done();
         });
       });

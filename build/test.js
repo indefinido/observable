@@ -14675,7 +14675,8 @@ require.register("observable/lib/observable.js", Function("exports, module",
 var jQuery = require(\"component~jquery@1.9.1\");\n\
 var observation = require(\"observable/lib/observable/observation.js\");\n\
 var selection = require(\"observable/lib/observable/selection.js\");\n\
-var Observer = require(\"observable/lib/observable/observer.js\");\n\
+var KeypathObserver = require(\"observable/lib/observable/keypath_observer.js\");\n\
+var SelfObserver = require(\"observable/lib/observable/self_observer.js\");\n\
 var observable;\n\
 \n\
 observable = function() {\n\
@@ -14701,11 +14702,17 @@ jQuery.extend(observable, {\n\
       value: {}\n\
     }));\n\
   },\n\
+  self: function(object) {\n\
+    var observer, observers;\n\
+\n\
+    observers = object.observation.observers;\n\
+    return observer = observers.self || (observers.self = new SelfObserver(object));\n\
+  },\n\
   keypath: function(object, keypath) {\n\
     var observer, observers;\n\
 \n\
     observers = object.observation.observers;\n\
-    return observer = observers[keypath] || (observers[keypath] = new Observer(object, keypath));\n\
+    return observer = observers[keypath] || (observers[keypath] = new KeypathObserver(object, keypath));\n\
   },\n\
   unobserve: function(object) {\n\
     var name, unobserved;\n\
@@ -14724,11 +14731,17 @@ jQuery.extend(observable, {\n\
     return unobserved;\n\
   },\n\
   methods: {\n\
-    subscribe: function(keypath, callback) {\n\
-      if (!this.observation.observers[keypath]) {\n\
-        observable.keypath(this, keypath);\n\
+    subscribe: function(keypath_or_callback, callback) {\n\
+      var observer;\n\
+\n\
+      switch (arguments.length) {\n\
+        case 1:\n\
+          observer = observable.self(this);\n\
+          return this.observation.add('self', keypath_or_callback);\n\
+        case 2:\n\
+          observable.keypath(this, keypath_or_callback);\n\
+          return this.observation.add(keypath_or_callback, callback);\n\
       }\n\
-      return this.observation.add(keypath, callback);\n\
     },\n\
     unsubscribe: function(keypath, callback) {\n\
       return this.observation[callback ? 'remove' : 'mute'](keypath, callback);\n\
@@ -14750,6 +14763,49 @@ observable.mixin = observable;\n\
 module.exports = observable;\n\
 \n\
 //# sourceURL=lib/observable.js"
+));
+
+require.register("observable/lib/observable/keypath_observer.js", Function("exports, module",
+"var PathObserver = require(\"observable/vendor/observe-js/observe.js\").PathObserver;\n\
+var Callbacks = require(\"component~jquery@1.9.1\").Callbacks;\n\
+var KeypathObserver,\n\
+  __hasProp = {}.hasOwnProperty,\n\
+  __extends = function(child, parent) { for (var key in parent) { if (__hasProp.call(parent, key)) child[key] = parent[key]; } function ctor() { this.constructor = child; } ctor.prototype = parent.prototype; child.prototype = new ctor(); child.__super__ = parent.prototype; return child; };\n\
+\n\
+KeypathObserver = (function(_super) {\n\
+  __extends(KeypathObserver, _super);\n\
+\n\
+  function KeypathObserver(object, keypath) {\n\
+    _super.call(this, object, keypath);\n\
+    this.callbacks = Callbacks();\n\
+    this.open((function() {\n\
+      return this.fireWith(object, arguments);\n\
+    }), this.callbacks);\n\
+  }\n\
+\n\
+  KeypathObserver.prototype.add = function(callback) {\n\
+    return this.callbacks.add(callback);\n\
+  };\n\
+\n\
+  KeypathObserver.prototype.remove = function() {\n\
+    var _ref;\n\
+\n\
+    return (_ref = this.callbacks).remove.apply(_ref, arguments);\n\
+  };\n\
+\n\
+  KeypathObserver.prototype.close = function() {\n\
+    KeypathObserver.__super__.close.apply(this, arguments);\n\
+    this.callbacks.empty();\n\
+    return delete this.callbacks;\n\
+  };\n\
+\n\
+  return KeypathObserver;\n\
+\n\
+})(PathObserver);\n\
+\n\
+module.exports = KeypathObserver;\n\
+\n\
+//# sourceURL=lib/observable/keypath_observer.js"
 ));
 
 require.register("observable/lib/observable/observation.js", Function("exports, module",
@@ -14789,49 +14845,6 @@ observationable = function(object) {\n\
 module.exports = observationable;\n\
 \n\
 //# sourceURL=lib/observable/observation.js"
-));
-
-require.register("observable/lib/observable/observer.js", Function("exports, module",
-"var PathObserver = require(\"observable/vendor/observe-js/observe.js\").PathObserver;\n\
-var Callbacks = require(\"component~jquery@1.9.1\").Callbacks;\n\
-var Observer,\n\
-  __hasProp = {}.hasOwnProperty,\n\
-  __extends = function(child, parent) { for (var key in parent) { if (__hasProp.call(parent, key)) child[key] = parent[key]; } function ctor() { this.constructor = child; } ctor.prototype = parent.prototype; child.prototype = new ctor(); child.__super__ = parent.prototype; return child; };\n\
-\n\
-Observer = (function(_super) {\n\
-  __extends(Observer, _super);\n\
-\n\
-  function Observer(object, keypath) {\n\
-    _super.call(this, object, keypath);\n\
-    this.callbacks = Callbacks();\n\
-    this.open((function() {\n\
-      return this.fireWith(object, arguments);\n\
-    }), this.callbacks);\n\
-  }\n\
-\n\
-  Observer.prototype.add = function(callback) {\n\
-    return this.callbacks.add(callback);\n\
-  };\n\
-\n\
-  Observer.prototype.remove = function() {\n\
-    var _ref;\n\
-\n\
-    return (_ref = this.callbacks).remove.apply(_ref, arguments);\n\
-  };\n\
-\n\
-  Observer.prototype.close = function() {\n\
-    Observer.__super__.close.apply(this, arguments);\n\
-    this.callbacks.empty();\n\
-    return delete this.callbacks;\n\
-  };\n\
-\n\
-  return Observer;\n\
-\n\
-})(PathObserver);\n\
-\n\
-module.exports = Observer;\n\
-\n\
-//# sourceURL=lib/observable/observer.js"
 ));
 
 require.register("observable/lib/observable/selection.js", Function("exports, module",
@@ -14894,6 +14907,49 @@ selection.from_call = function(param) {\n\
 module.exports = selection;\n\
 \n\
 //# sourceURL=lib/observable/selection.js"
+));
+
+require.register("observable/lib/observable/self_observer.js", Function("exports, module",
+"var ObjectObserver = require(\"observable/vendor/observe-js/observe.js\").ObjectObserver;\n\
+var Callbacks = require(\"component~jquery@1.9.1\").Callbacks;\n\
+var SelfObserver,\n\
+  __hasProp = {}.hasOwnProperty,\n\
+  __extends = function(child, parent) { for (var key in parent) { if (__hasProp.call(parent, key)) child[key] = parent[key]; } function ctor() { this.constructor = child; } ctor.prototype = parent.prototype; child.prototype = new ctor(); child.__super__ = parent.prototype; return child; };\n\
+\n\
+SelfObserver = (function(_super) {\n\
+  __extends(SelfObserver, _super);\n\
+\n\
+  function SelfObserver(object) {\n\
+    _super.call(this, object);\n\
+    this.callbacks = Callbacks();\n\
+    this.open((function() {\n\
+      return this.fireWith(object, arguments);\n\
+    }), this.callbacks);\n\
+  }\n\
+\n\
+  SelfObserver.prototype.add = function(callback) {\n\
+    return this.callbacks.add(callback);\n\
+  };\n\
+\n\
+  SelfObserver.prototype.remove = function() {\n\
+    var _ref;\n\
+\n\
+    return (_ref = this.callbacks).remove.apply(_ref, arguments);\n\
+  };\n\
+\n\
+  SelfObserver.prototype.close = function() {\n\
+    SelfObserver.__super__.close.apply(this, arguments);\n\
+    this.callbacks.empty();\n\
+    return delete this.callbacks;\n\
+  };\n\
+\n\
+  return SelfObserver;\n\
+\n\
+})(ObjectObserver);\n\
+\n\
+module.exports = SelfObserver;\n\
+\n\
+//# sourceURL=lib/observable/self_observer.js"
 ));
 
 require.register("observable/lib/platform.js", Function("exports, module",

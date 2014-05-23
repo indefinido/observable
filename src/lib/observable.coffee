@@ -1,12 +1,12 @@
 # Shim older needed features
 `import './platform.js'`
 # TODO remove jquery dependency
-`import jQuery from 'jquery'`
+`import jQuery          from 'jquery'`
 # Observable Implementation
-`import observation from './observable/observation.js'`
-`import selection   from './observable/selection.js'`
-`import Observer    from './observable/observer.js'`
-
+`import observation     from './observable/observation.js'`
+`import selection       from './observable/selection.js'`
+`import KeypathObserver from './observable/keypath_observer.js'`
+`import SelfObserver    from './observable/self_observer.js'`
 
 observable = ->
   object = observable.select.apply @, arguments
@@ -33,10 +33,13 @@ jQuery.extend observable,
         configurable: true
         enumerable: false
         value: {}
+  self: (object) ->
+    {observation: {observers}} = object
+    observer = observers.self ||= new SelfObserver object
 
   keypath: (object, keypath) ->
     {observation: {observers}} = object
-    observer = observers[keypath] ||= new Observer object, keypath
+    observer = observers[keypath] ||= new KeypathObserver object, keypath
 
   unobserve: (object) ->
       # In case the users tries to unobserve a not observed object
@@ -60,9 +63,14 @@ jQuery.extend observable,
 
   methods:
     # TODO when rivets updates, start using array observer
-    subscribe: (keypath, callback) ->
-      observable.keypath @, keypath unless @observation.observers[keypath]
-      @observation.add keypath, callback
+    subscribe: (keypath_or_callback, callback) ->
+      switch arguments.length
+        when 1
+          observer = observable.self @
+          @observation.add 'self', keypath_or_callback
+        when 2
+          observable.keypath @, keypath_or_callback
+          @observation.add keypath_or_callback, callback
 
     unsubscribe: (keypath, callback) ->
       @observation[if callback then 'remove' else 'mute'] keypath, callback

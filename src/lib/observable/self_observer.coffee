@@ -1,10 +1,10 @@
-`import {PathObserver} from '../../vendor/observe-js/observe.js'`
+`import {ObjectObserver} from '../../vendor/observe-js/observe.js'`
 # TODO implement jQuery.Callbacks functionality as a component separately
 `import {Callbacks} from 'jquery'`
 
-class Observer extends PathObserver
-  constructor: (object, keypath) ->
-    _super.call @, object, keypath
+class SelfObserver extends ObjectObserver
+  constructor: (object) ->
+    _super.call @, object
     @callbacks = Callbacks()
 
     # TODO better opening functionality
@@ -18,4 +18,4 @@ class Observer extends PathObserver
     @callbacks.empty()
     delete @callbacks
 
-`export default Observer`
+`export default SelfObserver`

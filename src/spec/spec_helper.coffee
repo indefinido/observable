@@ -6,3 +6,4 @@ root.sinon      = require 'observable/vendor/spec/sinon.js'
 if Object.defineProperty
   chai            = require 'chaijs-chai'
   root.should     = chai.should()
+  root.expect     = chai.expect

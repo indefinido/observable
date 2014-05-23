@@ -33,6 +33,10 @@ describe 'observable #()', ->
       @object = observable {}
       @spy    = sinon.spy()
 
+    it 'should throw error with wrong parameters type', ->
+      expect(-> @object.subscribe()).to.throw Error
+      expect(-> @object.subscribe 'asdas').to.throw Error
+
     it 'should schedule object observers check', (done) ->
       # Will execute sometime in the future
       @object.subscribe 'other', -> done()
@@ -61,6 +65,25 @@ describe 'observable #()', ->
           @spy.called.should.be.true
           second_spy.called.should.be.true
           done()
+
+    describe 'when object', ->
+      it 'should report any changes', ->
+        @object.subscribe => @spy()
+        @object.domo = 10
+
+        Platform.performMicrotaskCheckpoint()
+
+        @spy.called.should.be.true
+
+      it 'should schedule changes reporting when know properties are mixed', (done) ->
+        @object.subscribe 'domo', ->
+        @object.subscribe => @spy()
+        @object.domo = 10
+
+        @wait =>
+          @spy.called.should.be.true
+          done()
+
 
     describe 'when keypath', ->
       xit 'should subscribe to property', (done) ->
