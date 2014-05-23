@@ -14733,7 +14733,8 @@ jQuery.extend(observable, {\n\
     publish: function(keypath, value) {\n\
       return this[keypath] = value;\n\
     }\n\
-  }\n\
+  },\n\
+  ignores: []\n\
 });\n\
 \n\
 if (!Object.observe) {\n\

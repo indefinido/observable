@@ -10063,7 +10063,8 @@ jQuery.extend(observable, {
     publish: function(keypath, value) {
       return this[keypath] = value;
     }
-  }
+  },
+  ignores: []
 });
 
 if (!Object.observe) {

@@ -67,6 +67,10 @@ jQuery.extend observable,
       # TODO put option to force microtask execution
       @[keypath] = value
 
+  # Browser compatibility stuff
+  ignores: [] # Array of ignored properties when using dom element fix
+
+
 # We import the scheduler for automatically schedulling microtask
 # executions when polymer does not have the Object.observe
 unless Object.observe
