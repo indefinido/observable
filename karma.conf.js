@@ -9,10 +9,6 @@ module.exports = function(config) {
     files:  [
 
       // Test environment
-      //MOCHA,            Switch to mocha when not testing ie
-      //MOCHA_ADAPTER,
-      JASMINE,
-      JASMINE_ADAPTER,
       'components/cjohansen-sinon/sinon.js',
 
       // Test dependencies
@@ -30,7 +26,9 @@ module.exports = function(config) {
     ],
 
     // Custom frameworks
-    frameworks:  ['jasmine'],
+    // frameworks:  ['jasmine'], Use jasmine to test in ie 6-
+    frameworks:  ['mocha'],
+
 
 
     // test results reporter to use

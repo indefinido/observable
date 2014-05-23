@@ -1,28 +1,27 @@
 {
   "name": "observable",
-  "repo": "indefinido/observable",
+  "repository": "indefinido/observable",
   "description": "Observable capabilities built upon observable shim.",
-  "version": "0.1.5",
+  "version": "0.2.0",
   "keywords": [],
   "dependencies": {
     "component/jquery": "*"
   },
+  "main": "index.js",
   "development": {
-    "chaijs/chai": "*",
-    "components/cjohansen-sinon/sinon.js": "*"
+    "dependencies": {
+      "chaijs/chai": "*"
+    },
+    "scripts": [
+      "vendor/spec/sinon.js",
+      "vendor/spec/sinon/**/*.js"
+    ]
   },
   "license": "WTFPL",
   "scripts": [
-
     "index.js",
-
-    "lib/observable.js",
-
-    "lib/adapters/rivets.js",
-
-    "vendor/shims/accessors.js",
-    "vendor/shims/accessors-legacy.js",
-    "vendor/shims/array.indexOf.js",
-    "vendor/shims/object.create.js"
+    "lib/**/*.js",
+    "vendor/observe-js/*.js",
+    "vendor/shims/*.js"
   ]
 }
