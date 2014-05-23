@@ -10013,7 +10013,7 @@ observable = function() {
 
   object = observable.select.apply(this, arguments);
   if (object.observation) {
-    return;
+    return object;
   }
   return jQuery.extend(observable.observe(object), observable.methods);
 };

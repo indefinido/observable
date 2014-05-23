@@ -14683,7 +14683,7 @@ observable = function() {\n\
 \n\
   object = observable.select.apply(this, arguments);\n\
   if (object.observation) {\n\
-    return;\n\
+    return object;\n\
   }\n\
   return jQuery.extend(observable.observe(object), observable.methods);\n\
 };\n\

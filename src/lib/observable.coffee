@@ -11,7 +11,8 @@
 observable = ->
   object = observable.select.apply @, arguments
 
-  return if object.observation
+  # In case the user tries to observe a observed object
+  return object if object.observation
 
   jQuery.extend observable.observe(object), observable.methods
 
@@ -38,7 +39,7 @@ jQuery.extend observable,
     observer = observers[keypath] ||= new Observer object, keypath
 
   unobserve: (object) ->
-    # In case the users tries to unobserve a not observed object
+      # In case the users tries to unobserve a not observed object
     return object unless object.observation
 
     unobserved = {}
