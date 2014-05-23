@@ -39,7 +39,7 @@ jQuery.extend observable,
 
   unobserve: (object) ->
     # In case the users tries to unobserve a not observed object
-    return unless object.observation
+    return object unless object.observation
 
     unobserved = {}
 

@@ -10041,7 +10041,7 @@ jQuery.extend(observable, {
     var name, unobserved;
 
     if (!object.observation) {
-      return;
+      return object;
     }
     unobserved = {};
     for (name in observation.methods) {
