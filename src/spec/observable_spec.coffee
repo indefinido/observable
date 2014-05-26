@@ -125,8 +125,6 @@ describe 'observable #()', ->
         @object.friends.length.should.be.eq 1
         @spy.callCount.should.be.eq 3
 
-    xit 'should let element unsubscribe to property', ->
-
 
   xdescribe '#publish', ->
 
@@ -137,6 +135,11 @@ describe 'observable #()', ->
     beforeEach ->
       @object = observable {}
       @spy    = sinon.spy()
+
+    # TODO implement self listener unsubscription
+    xit 'should remove self listener', ->
+      @object.subscribe @spy
+      @object.unsubscribe @spy
 
     it 'should remove all listeners from property', (done) ->
       @object.subscribe 'property', @spy
