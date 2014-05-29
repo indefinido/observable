@@ -9897,7 +9897,9 @@ jQuery.extend(scheduler, {
         enumerable: true,
         configurable: true
       });
-      return object.observation.observers[keypath].setValue(value);
+      if (value !== object[keypath]) {
+        return object.observation.observers[keypath].setValue(value);
+      }
     },
     deliver: function() {
       var keypath, observer, _ref;

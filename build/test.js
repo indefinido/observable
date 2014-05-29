@@ -14565,7 +14565,9 @@ jQuery.extend(scheduler, {\n\
         enumerable: true,\n\
         configurable: true\n\
       });\n\
-      return object.observation.observers[keypath].setValue(value);\n\
+      if (value !== object[keypath]) {\n\
+        return object.observation.observers[keypath].setValue(value);\n\
+      }\n\
     },\n\
     deliver: function() {\n\
       var keypath, observer, _ref;\n\

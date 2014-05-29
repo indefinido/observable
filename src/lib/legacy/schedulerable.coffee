@@ -35,8 +35,9 @@ jQuery.extend scheduler,
         enumerable: true
         configurable: true
 
-      # We ignore the value when using a object observer
-      object.observation.observers[keypath].setValue value
+      # Only update current value if the getter and setter definitions
+      # changed it
+      object.observation.observers[keypath].setValue value unless value == object[keypath]
 
     deliver   : ->
       observer.deliver() for keypath, observer of @target.observation.observers
