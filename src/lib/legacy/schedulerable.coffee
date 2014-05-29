@@ -25,12 +25,18 @@ jQuery.extend scheduler,
       return unless @keypaths.indexOf(keypath) == -1
       @keypaths.push keypath
 
+      # Store current property value
+      value = object[keypath]
+
       # Transform property into observable
       Object.defineProperty object, keypath,
         get: @getter object, keypath
         set: @setter object, keypath
         enumerable: true
         configurable: true
+
+      # We ignore the value when using a object observer
+      object.observation.observers[keypath].setValue value
 
     deliver   : ->
       observer.deliver() for keypath, observer of @target.observation.observers
@@ -67,9 +73,10 @@ schedulerable = (observable) ->
   #   value: {}
 
   original = observable.methods.subscribe
+  # TODO allow multiple callbacks as arguments on the api
   observable.methods.subscribe = (keypath, callback)->
     original.apply @, arguments
-    @observation.scheduler.property @, keypath
+    @observation.scheduler.property @, keypath unless typeof keypath == 'function'
 
   jQuery.extend (->
     object = observable.apply @, arguments

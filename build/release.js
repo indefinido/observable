@@ -9884,16 +9884,20 @@ scheduler = function(options) {
 jQuery.extend(scheduler, {
   methods: {
     property: function(object, keypath) {
+      var value;
+
       if (this.keypaths.indexOf(keypath) !== -1) {
         return;
       }
       this.keypaths.push(keypath);
-      return Object.defineProperty(object, keypath, {
+      value = object[keypath];
+      Object.defineProperty(object, keypath, {
         get: this.getter(object, keypath),
         set: this.setter(object, keypath),
         enumerable: true,
         configurable: true
       });
+      return object.observation.observers[keypath].setValue(value);
     },
     deliver: function() {
       var keypath, observer, _ref;
@@ -9941,7 +9945,9 @@ schedulerable = function(observable) {
   original = observable.methods.subscribe;
   observable.methods.subscribe = function(keypath, callback) {
     original.apply(this, arguments);
-    return this.observation.scheduler.property(this, keypath);
+    if (typeof keypath !== 'function') {
+      return this.observation.scheduler.property(this, keypath);
+    }
   };
   return jQuery.extend((function() {
     var object;
@@ -11924,7 +11930,7 @@ require.register("observable/vendor/observe-js/observe.js", function (exports, m
   global.CompoundObserver = CompoundObserver;
   global.Path = Path;
   global.ObserverTransform = ObserverTransform;
-})(typeof global !== 'undefined' && global && typeof module !== 'undefined' && module ? exports || global : this || window);
+})(typeof global !== 'undefined' && global && typeof module !== 'undefined' && module ? exports || global : exports || this || window);
 
 });
 

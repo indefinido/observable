@@ -30,7 +30,7 @@ describe 'observable #()', ->
   describe '#subscribe', ->
 
     beforeEach ->
-      @object = observable {}
+      @object = observable property: 'value'
       @spy    = sinon.spy()
 
     it 'should throw error with wrong parameters type', ->
@@ -39,15 +39,21 @@ describe 'observable #()', ->
 
     it 'should schedule object observers check', (done) ->
       # Will execute sometime in the future
-      @object.subscribe 'other', -> done()
+      @object.subscribe 'property', -> done()
 
-      @object.other = 'mafagafo'
+      @object.property = 'mafagafo'
 
     describe 'when key', ->
-      it 'should subscribe to property', (done) ->
-        @object.subscribe 'other', @spy
+      it 'should subscribe preserve the current property value', ->
+        @object.should.have.property 'property', 'value'
+        @object.subscribe 'property', @spy
+        @object.should.have.property 'property', 'value'
+        @spy.called.should.be.false
 
-        @object.other = 'mafagafo'
+      it 'should subscribe to property', (done) ->
+        @object.subscribe 'property', @spy
+
+        @object.property = 'mafagafoid'
 
         @wait =>
           @spy.called.should.be.true
@@ -76,17 +82,26 @@ describe 'observable #()', ->
         @spy.called.should.be.true
 
       it 'should schedule changes reporting when know properties are mixed', (done) ->
-        @object.subscribe 'domo', ->
-        @object.subscribe => @spy()
-        @object.domo = 10
+          @object.subscribe 'domo', ->
+          @object.subscribe => @spy()
+          @object.domo = 10
 
-        @wait =>
-          @spy.called.should.be.true
-          done()
+          @wait =>
+            @spy.called.should.be.true
+            done()
 
 
     describe 'when keypath', ->
-      xit 'should subscribe to property', (done) ->
+      it 'should subscribe to property', ->
+        @object.property = {subproperty: 'subvalue'}
+        @object.subscribe 'property.subproperty', => @spy()
+
+        @object.property.subproperty = 'mafagafo'
+
+        Platform.performMicrotaskCheckpoint()
+
+        @spy.called.should.be.true
+
 
     # TODO wait for rivets to implement array observer
     describe 'when array', ->

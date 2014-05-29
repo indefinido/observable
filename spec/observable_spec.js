@@ -33,7 +33,9 @@ describe('observable #()', function() {
   });
   describe('#subscribe', function() {
     beforeEach(function() {
-      this.object = observable({});
+      this.object = observable({
+        property: 'value'
+      });
       return this.spy = sinon.spy();
     });
     it('should throw error with wrong parameters type', function() {
@@ -45,17 +47,23 @@ describe('observable #()', function() {
       }).to["throw"](Error);
     });
     it('should schedule object observers check', function(done) {
-      this.object.subscribe('other', function() {
+      this.object.subscribe('property', function() {
         return done();
       });
-      return this.object.other = 'mafagafo';
+      return this.object.property = 'mafagafo';
     });
     describe('when key', function() {
+      it('should subscribe preserve the current property value', function() {
+        this.object.should.have.property('property', 'value');
+        this.object.subscribe('property', this.spy);
+        this.object.should.have.property('property', 'value');
+        return this.spy.called.should.be["false"];
+      });
       it('should subscribe to property', function(done) {
         var _this = this;
 
-        this.object.subscribe('other', this.spy);
-        this.object.other = 'mafagafo';
+        this.object.subscribe('property', this.spy);
+        this.object.property = 'mafagafoid';
         return this.wait(function() {
           _this.spy.called.should.be["true"];
           return done();
@@ -102,9 +110,21 @@ describe('observable #()', function() {
       });
     });
     describe('when keypath', function() {
-      return xit('should subscribe to property', function(done) {});
+      return it('should subscribe to property', function() {
+        var _this = this;
+
+        this.object.property = {
+          subproperty: 'subvalue'
+        };
+        this.object.subscribe('property.subproperty', function() {
+          return _this.spy();
+        });
+        this.object.property.subproperty = 'mafagafo';
+        Platform.performMicrotaskCheckpoint();
+        return this.spy.called.should.be["true"];
+      });
     });
-    describe('when array', function() {
+    return describe('when array', function() {
       xit('should subscribe to property', function(done) {});
       xit('should observe objects added to array', function() {
         var friend;
@@ -132,7 +152,6 @@ describe('observable #()', function() {
         return this.spy.callCount.should.be.eq(3);
       });
     });
-    return xit('should let element unsubscribe to property', function() {});
   });
   xdescribe('#publish', function() {
     return xit('should let element publish to property');
@@ -141,6 +160,10 @@ describe('observable #()', function() {
     beforeEach(function() {
       this.object = observable({});
       return this.spy = sinon.spy();
+    });
+    xit('should remove self listener', function() {
+      this.object.subscribe(this.spy);
+      return this.object.unsubscribe(this.spy);
     });
     it('should remove all listeners from property', function(done) {
       var _this = this;

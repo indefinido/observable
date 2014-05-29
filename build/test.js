@@ -14552,16 +14552,20 @@ scheduler = function(options) {\n\
 jQuery.extend(scheduler, {\n\
   methods: {\n\
     property: function(object, keypath) {\n\
+      var value;\n\
+\n\
       if (this.keypaths.indexOf(keypath) !== -1) {\n\
         return;\n\
       }\n\
       this.keypaths.push(keypath);\n\
-      return Object.defineProperty(object, keypath, {\n\
+      value = object[keypath];\n\
+      Object.defineProperty(object, keypath, {\n\
         get: this.getter(object, keypath),\n\
         set: this.setter(object, keypath),\n\
         enumerable: true,\n\
         configurable: true\n\
       });\n\
+      return object.observation.observers[keypath].setValue(value);\n\
     },\n\
     deliver: function() {\n\
       var keypath, observer, _ref;\n\
@@ -14609,7 +14613,9 @@ schedulerable = function(observable) {\n\
   original = observable.methods.subscribe;\n\
   observable.methods.subscribe = function(keypath, callback) {\n\
     original.apply(this, arguments);\n\
-    return this.observation.scheduler.property(this, keypath);\n\
+    if (typeof keypath !== 'function') {\n\
+      return this.observation.scheduler.property(this, keypath);\n\
+    }\n\
   };\n\
   return jQuery.extend((function() {\n\
     var object;\n\
@@ -16604,7 +16610,7 @@ else\\n\
   global.CompoundObserver = CompoundObserver;\n\
   global.Path = Path;\n\
   global.ObserverTransform = ObserverTransform;\n\
-})(typeof global !== 'undefined' && global && typeof module !== 'undefined' && module ? exports || global : this || window);\n\
+})(typeof global !== 'undefined' && global && typeof module !== 'undefined' && module ? exports || global : exports || this || window);\n\
 \n\
 //# sourceURL=vendor/observe-js/observe.js"
 ));
