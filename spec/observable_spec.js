@@ -156,7 +156,7 @@ describe('observable #()', function() {
   xdescribe('#publish', function() {
     return xit('should let element publish to property');
   });
-  return describe('#unsubscribe', function() {
+  describe('#unsubscribe', function() {
     beforeEach(function() {
       this.object = observable({});
       return this.spy = sinon.spy();
@@ -191,5 +191,24 @@ describe('observable #()', function() {
         return done();
       });
     });
+  });
+  return describe('#unobserve', function() {
+    beforeEach(function() {
+      return this.object = observable({
+        property: 'value'
+      });
+    });
+    it('should remove observation methods and properties', function() {
+      var method;
+
+      observable.unobserve(this.object);
+      for (method in observable.methods) {
+        this.object.should.not.have.property(method);
+      }
+      this.object.should.not.have.property('observation');
+      return this.object.should.not.have.property('observed');
+    });
+    xit('should destroy observers');
+    return xit('should remove getters and setters');
   });
 });

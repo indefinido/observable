@@ -9884,21 +9884,23 @@ scheduler = function(options) {
 jQuery.extend(scheduler, {
   methods: {
     property: function(object, keypath) {
-      var value;
+      var observer, observers, value;
 
       if (this.keypaths.indexOf(keypath) !== -1) {
         return;
       }
       this.keypaths.push(keypath);
-      value = object[keypath];
+      observers = object.observation.observers;
+      observer = observers[keypath];
+      value = observer.path_.getValueFrom(object);
       Object.defineProperty(object, keypath, {
         get: this.getter(object, keypath),
         set: this.setter(object, keypath),
         enumerable: true,
         configurable: true
       });
-      if (value !== object[keypath]) {
-        return object.observation.observers[keypath].setValue(value);
+      if (value !== observer.path_.getValueFrom(object)) {
+        return observer.setValue(value);
       }
     },
     deliver: function() {
@@ -10030,15 +10032,16 @@ observable = function() {
 jQuery.extend(observable, {
   select: selection(observable),
   observe: function(object) {
-    return Object.defineProperty(object, "observation", {
+    Object.defineProperty(object, "observation", {
       configurable: true,
       enumerable: false,
       value: observation(object)
-    }, Object.defineProperty(object, "observed", {
+    });
+    return Object.defineProperty(object, "observed", {
       configurable: true,
       enumerable: false,
       value: {}
-    }));
+    });
   },
   self: function(object) {
     var observer, observers;
@@ -10053,20 +10056,19 @@ jQuery.extend(observable, {
     return observer = observers[keypath] || (observers[keypath] = new KeypathObserver(object, keypath));
   },
   unobserve: function(object) {
-    var name, unobserved;
+    var name;
 
     if (!object.observation) {
       return object;
     }
-    unobserved = {};
-    for (name in observation.methods) {
+    for (name in observable.methods) {
       delete object[name];
     }
     object.observation.destroy();
     object.observation.scheduler.destroy();
     delete object.observation;
     delete object.observed;
-    return unobserved;
+    return true;
   },
   methods: {
     subscribe: function(keypath_or_callback, callback) {

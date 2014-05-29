@@ -46,21 +46,17 @@ jQuery.extend observable,
       # In case the users tries to unobserve a not observed object
     return object unless object.observation
 
-    unobserved = {}
-
-    # TODO remove root setter and root getter and callbacks from
-    # callback thread
+    # TODO remove root setter and root getter
 
     # Remove mixed in properties
-    for name of observation.methods
-      delete object[name]
+    delete object[name] for name of observable.methods
 
     object.observation.destroy()
     object.observation.scheduler.destroy()
     delete object.observation
     delete object.observed
 
-    unobserved
+    true
 
   methods:
     # TODO when rivets updates, start using array observer

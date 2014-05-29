@@ -24,9 +24,11 @@ jQuery.extend scheduler,
     property: (object, keypath) ->
       return unless @keypaths.indexOf(keypath) == -1
       @keypaths.push keypath
+      {observation: {observers}} = object
+      observer = observers[keypath]
 
       # Store current property value
-      value = object[keypath]
+      value = observer.path_.getValueFrom object
 
       # Transform property into observable
       Object.defineProperty object, keypath,
@@ -37,7 +39,7 @@ jQuery.extend scheduler,
 
       # Only update current value if the getter and setter definitions
       # changed it
-      object.observation.observers[keypath].setValue value unless value == object[keypath]
+      observer.setValue value unless value == observer.path_.getValueFrom object
 
     deliver   : ->
       observer.deliver() for keypath, observer of @target.observation.observers

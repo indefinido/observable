@@ -9675,126 +9675,6 @@ require.modules["component~jquery"] = require.modules["component~jquery@1.9.1"];
 require.modules["jquery"] = require.modules["component~jquery@1.9.1"];
 
 
-require.register("chaijs~assertion-error@1.0.0", Function("exports, module",
-"/*!\n\
- * assertion-error\n\
- * Copyright(c) 2013 Jake Luer <jake@qualiancy.com>\n\
- * MIT Licensed\n\
- */\n\
-\n\
-/*!\n\
- * Return a function that will copy properties from\n\
- * one object to another excluding any originally\n\
- * listed. Returned function will create a new `{}`.\n\
- *\n\
- * @param {String} excluded properties ...\n\
- * @return {Function}\n\
- */\n\
-\n\
-function exclude () {\n\
-  var excludes = [].slice.call(arguments);\n\
-\n\
-  function excludeProps (res, obj) {\n\
-    Object.keys(obj).forEach(function (key) {\n\
-      if (!~excludes.indexOf(key)) res[key] = obj[key];\n\
-    });\n\
-  }\n\
-\n\
-  return function extendExclude () {\n\
-    var args = [].slice.call(arguments)\n\
-      , i = 0\n\
-      , res = {};\n\
-\n\
-    for (; i < args.length; i++) {\n\
-      excludeProps(res, args[i]);\n\
-    }\n\
-\n\
-    return res;\n\
-  };\n\
-};\n\
-\n\
-/*!\n\
- * Primary Exports\n\
- */\n\
-\n\
-module.exports = AssertionError;\n\
-\n\
-/**\n\
- * ### AssertionError\n\
- *\n\
- * An extension of the JavaScript `Error` constructor for\n\
- * assertion and validation scenarios.\n\
- *\n\
- * @param {String} message\n\
- * @param {Object} properties to include (optional)\n\
- * @param {callee} start stack function (optional)\n\
- */\n\
-\n\
-function AssertionError (message, _props, ssf) {\n\
-  var extend = exclude('name', 'message', 'stack', 'constructor', 'toJSON')\n\
-    , props = extend(_props || {});\n\
-\n\
-  // default values\n\
-  this.message = message || 'Unspecified AssertionError';\n\
-  this.showDiff = false;\n\
-\n\
-  // copy from properties\n\
-  for (var key in props) {\n\
-    this[key] = props[key];\n\
-  }\n\
-\n\
-  // capture stack trace\n\
-  ssf = ssf || arguments.callee;\n\
-  if (ssf && Error.captureStackTrace) {\n\
-    Error.captureStackTrace(this, ssf);\n\
-  }\n\
-}\n\
-\n\
-/*!\n\
- * Inherit from Error.prototype\n\
- */\n\
-\n\
-AssertionError.prototype = Object.create(Error.prototype);\n\
-\n\
-/*!\n\
- * Statically set name\n\
- */\n\
-\n\
-AssertionError.prototype.name = 'AssertionError';\n\
-\n\
-/*!\n\
- * Ensure correct constructor\n\
- */\n\
-\n\
-AssertionError.prototype.constructor = AssertionError;\n\
-\n\
-/**\n\
- * Allow errors to be converted to JSON for static transfer.\n\
- *\n\
- * @param {Boolean} include stack (default: `true`)\n\
- * @return {Object} object that can be `JSON.stringify`\n\
- */\n\
-\n\
-AssertionError.prototype.toJSON = function (stack) {\n\
-  var extend = exclude('constructor', 'toJSON', 'stack')\n\
-    , props = extend({ name: this.name }, this);\n\
-\n\
-  // include stack if exists and not turned off\n\
-  if (false !== stack && this.stack) {\n\
-    props.stack = this.stack;\n\
-  }\n\
-\n\
-  return props;\n\
-};\n\
-\n\
-//# sourceURL=components/chaijs/assertion-error/1.0.0/index.js"
-));
-
-require.modules["chaijs-assertion-error"] = require.modules["chaijs~assertion-error@1.0.0"];
-require.modules["chaijs~assertion-error"] = require.modules["chaijs~assertion-error@1.0.0"];
-require.modules["assertion-error"] = require.modules["chaijs~assertion-error@1.0.0"];
-
-
 require.register("chaijs~type-detect@0.1.1", Function("exports, module",
 "/*!\n\
  * type-detect\n\
@@ -10212,6 +10092,126 @@ function objectEqual(a, b, m) {\n\
 require.modules["chaijs-deep-eql"] = require.modules["chaijs~deep-eql@0.1.3"];
 require.modules["chaijs~deep-eql"] = require.modules["chaijs~deep-eql@0.1.3"];
 require.modules["deep-eql"] = require.modules["chaijs~deep-eql@0.1.3"];
+
+
+require.register("chaijs~assertion-error@1.0.0", Function("exports, module",
+"/*!\n\
+ * assertion-error\n\
+ * Copyright(c) 2013 Jake Luer <jake@qualiancy.com>\n\
+ * MIT Licensed\n\
+ */\n\
+\n\
+/*!\n\
+ * Return a function that will copy properties from\n\
+ * one object to another excluding any originally\n\
+ * listed. Returned function will create a new `{}`.\n\
+ *\n\
+ * @param {String} excluded properties ...\n\
+ * @return {Function}\n\
+ */\n\
+\n\
+function exclude () {\n\
+  var excludes = [].slice.call(arguments);\n\
+\n\
+  function excludeProps (res, obj) {\n\
+    Object.keys(obj).forEach(function (key) {\n\
+      if (!~excludes.indexOf(key)) res[key] = obj[key];\n\
+    });\n\
+  }\n\
+\n\
+  return function extendExclude () {\n\
+    var args = [].slice.call(arguments)\n\
+      , i = 0\n\
+      , res = {};\n\
+\n\
+    for (; i < args.length; i++) {\n\
+      excludeProps(res, args[i]);\n\
+    }\n\
+\n\
+    return res;\n\
+  };\n\
+};\n\
+\n\
+/*!\n\
+ * Primary Exports\n\
+ */\n\
+\n\
+module.exports = AssertionError;\n\
+\n\
+/**\n\
+ * ### AssertionError\n\
+ *\n\
+ * An extension of the JavaScript `Error` constructor for\n\
+ * assertion and validation scenarios.\n\
+ *\n\
+ * @param {String} message\n\
+ * @param {Object} properties to include (optional)\n\
+ * @param {callee} start stack function (optional)\n\
+ */\n\
+\n\
+function AssertionError (message, _props, ssf) {\n\
+  var extend = exclude('name', 'message', 'stack', 'constructor', 'toJSON')\n\
+    , props = extend(_props || {});\n\
+\n\
+  // default values\n\
+  this.message = message || 'Unspecified AssertionError';\n\
+  this.showDiff = false;\n\
+\n\
+  // copy from properties\n\
+  for (var key in props) {\n\
+    this[key] = props[key];\n\
+  }\n\
+\n\
+  // capture stack trace\n\
+  ssf = ssf || arguments.callee;\n\
+  if (ssf && Error.captureStackTrace) {\n\
+    Error.captureStackTrace(this, ssf);\n\
+  }\n\
+}\n\
+\n\
+/*!\n\
+ * Inherit from Error.prototype\n\
+ */\n\
+\n\
+AssertionError.prototype = Object.create(Error.prototype);\n\
+\n\
+/*!\n\
+ * Statically set name\n\
+ */\n\
+\n\
+AssertionError.prototype.name = 'AssertionError';\n\
+\n\
+/*!\n\
+ * Ensure correct constructor\n\
+ */\n\
+\n\
+AssertionError.prototype.constructor = AssertionError;\n\
+\n\
+/**\n\
+ * Allow errors to be converted to JSON for static transfer.\n\
+ *\n\
+ * @param {Boolean} include stack (default: `true`)\n\
+ * @return {Object} object that can be `JSON.stringify`\n\
+ */\n\
+\n\
+AssertionError.prototype.toJSON = function (stack) {\n\
+  var extend = exclude('constructor', 'toJSON', 'stack')\n\
+    , props = extend({ name: this.name }, this);\n\
+\n\
+  // include stack if exists and not turned off\n\
+  if (false !== stack && this.stack) {\n\
+    props.stack = this.stack;\n\
+  }\n\
+\n\
+  return props;\n\
+};\n\
+\n\
+//# sourceURL=components/chaijs/assertion-error/1.0.0/index.js"
+));
+
+require.modules["chaijs-assertion-error"] = require.modules["chaijs~assertion-error@1.0.0"];
+require.modules["chaijs~assertion-error"] = require.modules["chaijs~assertion-error@1.0.0"];
+require.modules["assertion-error"] = require.modules["chaijs~assertion-error@1.0.0"];
 
 
 require.register("chaijs~chai@1.9.1", Function("exports, module",
@@ -14552,21 +14552,23 @@ scheduler = function(options) {\n\
 jQuery.extend(scheduler, {\n\
   methods: {\n\
     property: function(object, keypath) {\n\
-      var value;\n\
+      var observer, observers, value;\n\
 \n\
       if (this.keypaths.indexOf(keypath) !== -1) {\n\
         return;\n\
       }\n\
       this.keypaths.push(keypath);\n\
-      value = object[keypath];\n\
+      observers = object.observation.observers;\n\
+      observer = observers[keypath];\n\
+      value = observer.path_.getValueFrom(object);\n\
       Object.defineProperty(object, keypath, {\n\
         get: this.getter(object, keypath),\n\
         set: this.setter(object, keypath),\n\
         enumerable: true,\n\
         configurable: true\n\
       });\n\
-      if (value !== object[keypath]) {\n\
-        return object.observation.observers[keypath].setValue(value);\n\
+      if (value !== observer.path_.getValueFrom(object)) {\n\
+        return observer.setValue(value);\n\
       }\n\
     },\n\
     deliver: function() {\n\
@@ -14700,15 +14702,16 @@ observable = function() {\n\
 jQuery.extend(observable, {\n\
   select: selection(observable),\n\
   observe: function(object) {\n\
-    return Object.defineProperty(object, \"observation\", {\n\
+    Object.defineProperty(object, \"observation\", {\n\
       configurable: true,\n\
       enumerable: false,\n\
       value: observation(object)\n\
-    }, Object.defineProperty(object, \"observed\", {\n\
+    });\n\
+    return Object.defineProperty(object, \"observed\", {\n\
       configurable: true,\n\
       enumerable: false,\n\
       value: {}\n\
-    }));\n\
+    });\n\
   },\n\
   self: function(object) {\n\
     var observer, observers;\n\
@@ -14723,20 +14726,19 @@ jQuery.extend(observable, {\n\
     return observer = observers[keypath] || (observers[keypath] = new KeypathObserver(object, keypath));\n\
   },\n\
   unobserve: function(object) {\n\
-    var name, unobserved;\n\
+    var name;\n\
 \n\
     if (!object.observation) {\n\
       return object;\n\
     }\n\
-    unobserved = {};\n\
-    for (name in observation.methods) {\n\
+    for (name in observable.methods) {\n\
       delete object[name];\n\
     }\n\
     object.observation.destroy();\n\
     object.observation.scheduler.destroy();\n\
     delete object.observation;\n\
     delete object.observed;\n\
-    return unobserved;\n\
+    return true;\n\
   },\n\
   methods: {\n\
     subscribe: function(keypath_or_callback, callback) {\n\

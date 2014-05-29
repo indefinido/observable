@@ -179,3 +179,19 @@ describe 'observable #()', ->
         @spy.called.should.be.false
         second_spy.called.should.be.true
         done()
+
+  describe '#unobserve', ->
+    beforeEach ->
+      @object = observable property: 'value'
+
+    it 'should remove observation methods and properties', ->
+      observable.unobserve @object
+
+      for method of observable.methods
+        @object.should.not.have.property method
+
+      @object.should.not.have.property 'observation'
+      @object.should.not.have.property 'observed'
+
+    xit 'should destroy observers'
+    xit 'should remove getters and setters'

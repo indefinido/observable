@@ -14552,21 +14552,23 @@ scheduler = function(options) {\n\
 jQuery.extend(scheduler, {\n\
   methods: {\n\
     property: function(object, keypath) {\n\
-      var value;\n\
+      var observer, observers, value;\n\
 \n\
       if (this.keypaths.indexOf(keypath) !== -1) {\n\
         return;\n\
       }\n\
       this.keypaths.push(keypath);\n\
-      value = object[keypath];\n\
+      observers = object.observation.observers;\n\
+      observer = observers[keypath];\n\
+      value = observer.path_.getValueFrom(object);\n\
       Object.defineProperty(object, keypath, {\n\
         get: this.getter(object, keypath),\n\
         set: this.setter(object, keypath),\n\
         enumerable: true,\n\
         configurable: true\n\
       });\n\
-      if (value !== object[keypath]) {\n\
-        return object.observation.observers[keypath].setValue(value);\n\
+      if (value !== observer.path_.getValueFrom(object)) {\n\
+        return observer.setValue(value);\n\
       }\n\
     },\n\
     deliver: function() {\n\
@@ -14700,15 +14702,16 @@ observable = function() {\n\
 jQuery.extend(observable, {\n\
   select: selection(observable),\n\
   observe: function(object) {\n\
-    return Object.defineProperty(object, \"observation\", {\n\
+    Object.defineProperty(object, \"observation\", {\n\
       configurable: true,\n\
       enumerable: false,\n\
       value: observation(object)\n\
-    }, Object.defineProperty(object, \"observed\", {\n\
+    });\n\
+    return Object.defineProperty(object, \"observed\", {\n\
       configurable: true,\n\
       enumerable: false,\n\
       value: {}\n\
-    }));\n\
+    });\n\
   },\n\
   self: function(object) {\n\
     var observer, observers;\n\
@@ -14723,20 +14726,19 @@ jQuery.extend(observable, {\n\
     return observer = observers[keypath] || (observers[keypath] = new KeypathObserver(object, keypath));\n\
   },\n\
   unobserve: function(object) {\n\
-    var name, unobserved;\n\
+    var name;\n\
 \n\
     if (!object.observation) {\n\
       return object;\n\
     }\n\
-    unobserved = {};\n\
-    for (name in observation.methods) {\n\
+    for (name in observable.methods) {\n\
       delete object[name];\n\
     }\n\
     object.observation.destroy();\n\
     object.observation.scheduler.destroy();\n\
     delete object.observation;\n\
     delete object.observed;\n\
-    return unobserved;\n\
+    return true;\n\
   },\n\
   methods: {\n\
     subscribe: function(keypath_or_callback, callback) {\n\
