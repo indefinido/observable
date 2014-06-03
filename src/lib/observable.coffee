@@ -27,11 +27,11 @@ jQuery.extend observable,
       value: observation object
 
     # Actual properties value storage, and for backwards compatibility
-      # TODO implement warning on this property
-      Object.defineProperty object, "observed",
-        configurable: true
-        enumerable: false
-        value: {}
+    # TODO implement warning on this property
+    Object.defineProperty object, "observed",
+      configurable: true
+      enumerable: false
+      value: {}
 
   keypath: (object, keypath) ->
     {observation: {observers}} = object
