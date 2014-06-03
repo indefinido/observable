@@ -56,7 +56,7 @@ jQuery.extend observable,
     delete object.observation
     delete object.observed
 
-    true
+    object
 
   methods:
     # TODO when rivets updates, start using array observer

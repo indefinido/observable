@@ -13,7 +13,7 @@ scheduler = (options = {}) ->
     schedule: value: ->
       deliver = => @deliver()
       clearTimeout timeout
-      timeout = setTimeout deliver, 500 or options.wait
+      timeout = setTimeout deliver, 20 or options.wait
 
   Object.create scheduler.methods, options
 
@@ -41,9 +41,7 @@ jQuery.extend scheduler,
       # changed it
       observer.setValue value unless value == observer.path_.getValueFrom object
 
-    deliver   : ->
-      observer.deliver() for keypath, observer of @target.observation.observers
-      true
+    deliver   : -> @target.observation.deliver()
 
     setter: (object, keypath, callback) ->
       current_setter = lookup.setter.call object, keypath

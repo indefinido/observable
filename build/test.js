@@ -14572,14 +14572,7 @@ jQuery.extend(scheduler, {\n\
       }\n\
     },\n\
     deliver: function() {\n\
-      var keypath, observer, _ref;\n\
-\n\
-      _ref = this.target.observation.observers;\n\
-      for (keypath in _ref) {\n\
-        observer = _ref[keypath];\n\
-        observer.deliver();\n\
-      }\n\
-      return true;\n\
+      return this.target.observation.deliver();\n\
     },\n\
     setter: function(object, keypath, callback) {\n\
       var current_setter;\n\
@@ -14738,7 +14731,7 @@ jQuery.extend(observable, {\n\
     object.observation.scheduler.destroy();\n\
     delete object.observation;\n\
     delete object.observed;\n\
-    return true;\n\
+    return object;\n\
   },\n\
   methods: {\n\
     subscribe: function(keypath_or_callback, callback) {\n\
@@ -14827,6 +14820,17 @@ observation = {\n\
   },\n\
   remove: function(keypath, callback) {\n\
     return this.observers[keypath].remove(callback);\n\
+  },\n\
+  deliver: function() {\n\
+    var keypath, observer, _ref, _results;\n\
+\n\
+    _ref = this.observers;\n\
+    _results = [];\n\
+    for (keypath in _ref) {\n\
+      observer = _ref[keypath];\n\
+      _results.push(observer.deliver());\n\
+    }\n\
+    return _results;\n\
   },\n\
   mute: function(keypath) {\n\
     this.observers[keypath].close();\n\

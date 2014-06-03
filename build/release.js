@@ -9904,14 +9904,7 @@ jQuery.extend(scheduler, {
       }
     },
     deliver: function() {
-      var keypath, observer, _ref;
-
-      _ref = this.target.observation.observers;
-      for (keypath in _ref) {
-        observer = _ref[keypath];
-        observer.deliver();
-      }
-      return true;
+      return this.target.observation.deliver();
     },
     setter: function(object, keypath, callback) {
       var current_setter;
@@ -10068,7 +10061,7 @@ jQuery.extend(observable, {
     object.observation.scheduler.destroy();
     delete object.observation;
     delete object.observed;
-    return true;
+    return object;
   },
   methods: {
     subscribe: function(keypath_or_callback, callback) {
@@ -10155,6 +10148,17 @@ observation = {
   },
   remove: function(keypath, callback) {
     return this.observers[keypath].remove(callback);
+  },
+  deliver: function() {
+    var keypath, observer, _ref, _results;
+
+    _ref = this.observers;
+    _results = [];
+    for (keypath in _ref) {
+      observer = _ref[keypath];
+      _results.push(observer.deliver());
+    }
+    return _results;
   },
   mute: function(keypath) {
     this.observers[keypath].close();
