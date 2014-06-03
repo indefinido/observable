@@ -14542,7 +14542,7 @@ scheduler = function(options) {\n\
           return _this.deliver();\n\
         };\n\
         clearTimeout(timeout);\n\
-        return timeout = setTimeout(deliver, 500 || options.wait);\n\
+        return timeout = setTimeout(deliver, 20 || options.wait);\n\
       }\n\
     }\n\
   });\n\
