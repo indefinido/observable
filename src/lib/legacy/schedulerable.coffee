@@ -52,11 +52,13 @@ jQuery.extend scheduler,
 
           @observed[keypath] = value
           @observation.scheduler.schedule()
+          value
 
       else
         (value) ->
           @observed[keypath] = value
           @observation.scheduler.schedule()
+          value
 
     getter: (object, keypath) ->
       lookup.getter.call(object, keypath) or root_getter = -> @observed[keypath]

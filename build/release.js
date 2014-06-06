@@ -9914,12 +9914,14 @@ jQuery.extend(scheduler, {
         return function(value) {
           current_setter.call(this, value);
           this.observed[keypath] = value;
-          return this.observation.scheduler.schedule();
+          this.observation.scheduler.schedule();
+          return value;
         };
       } else {
         return function(value) {
           this.observed[keypath] = value;
-          return this.observation.scheduler.schedule();
+          this.observation.scheduler.schedule();
+          return value;
         };
       }
     },

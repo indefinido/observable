@@ -14582,12 +14582,14 @@ jQuery.extend(scheduler, {\n\
         return function(value) {\n\
           current_setter.call(this, value);\n\
           this.observed[keypath] = value;\n\
-          return this.observation.scheduler.schedule();\n\
+          this.observation.scheduler.schedule();\n\
+          return value;\n\
         };\n\
       } else {\n\
         return function(value) {\n\
           this.observed[keypath] = value;\n\
-          return this.observation.scheduler.schedule();\n\
+          this.observation.scheduler.schedule();\n\
+          return value;\n\
         };\n\
       }\n\
     },\n\
