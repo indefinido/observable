@@ -9663,7 +9663,9 @@ module.exports = require("observable/lib/observable.js");
 });
 
 require.register("observable/lib/adapters/rivets.js", function (exports, module) {
-exports.adapter = {
+var adapter;
+
+adapter = {
   subscribe: function(record, attribute_path, callback) {
     if (record == null) {
       throw new TypeError('observable.adapters.rivets.subscribe: No record provided for subscription');
@@ -9682,15 +9684,25 @@ exports.adapter = {
     if (record == null) {
       throw new TypeError('observable.adapters.rivets.read: No record provided for subscription');
     }
-    return record[attribute_path];
+    if (attribute_path.indexOf('.') === -1) {
+      return record[attribute_path];
+    } else {
+      return record.observation.observers[attribute_path].value_;
+    }
   },
   publish: function(record, attribute_path, value) {
     if (record == null) {
       throw new TypeError('observable.adapters.rivets.publish: No record provided for subscription');
     }
-    return record[attribute_path] = value;
+    if (attribute_path.indexOf('.') === -1) {
+      return record[attribute_path] = value;
+    } else {
+      return record.observation.observers[attribute_path].setValue(value);
+    }
   }
 };
+
+module.exports = adapter;
 
 });
 

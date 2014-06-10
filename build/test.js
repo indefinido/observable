@@ -14329,7 +14329,9 @@ require.register("observable", Function("exports, module",
 ));
 
 require.register("observable/lib/adapters/rivets.js", Function("exports, module",
-"exports.adapter = {\n\
+"var adapter;\n\
+\n\
+adapter = {\n\
   subscribe: function(record, attribute_path, callback) {\n\
     if (record == null) {\n\
       throw new TypeError('observable.adapters.rivets.subscribe: No record provided for subscription');\n\
@@ -14348,15 +14350,25 @@ require.register("observable/lib/adapters/rivets.js", Function("exports, module"
     if (record == null) {\n\
       throw new TypeError('observable.adapters.rivets.read: No record provided for subscription');\n\
     }\n\
-    return record[attribute_path];\n\
+    if (attribute_path.indexOf('.') === -1) {\n\
+      return record[attribute_path];\n\
+    } else {\n\
+      return record.observation.observers[attribute_path].value_;\n\
+    }\n\
   },\n\
   publish: function(record, attribute_path, value) {\n\
     if (record == null) {\n\
       throw new TypeError('observable.adapters.rivets.publish: No record provided for subscription');\n\
     }\n\
-    return record[attribute_path] = value;\n\
+    if (attribute_path.indexOf('.') === -1) {\n\
+      return record[attribute_path] = value;\n\
+    } else {\n\
+      return record.observation.observers[attribute_path].setValue(value);\n\
+    }\n\
   }\n\
 };\n\
+\n\
+module.exports = adapter;\n\
 \n\
 //# sourceURL=lib/adapters/rivets.js"
 ));
