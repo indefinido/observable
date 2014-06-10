@@ -14542,7 +14542,7 @@ scheduler = function(options) {\n\
     };\n\
   }\n\
   jQuery.extend(options, {\n\
-    keypaths: {\n\
+    schedulable_keypaths: {\n\
       value: []\n\
     },\n\
     schedule: {\n\
@@ -14563,13 +14563,13 @@ scheduler = function(options) {\n\
 \n\
 jQuery.extend(scheduler, {\n\
   methods: {\n\
-    property: function(object, keypath) {\n\
+    schedulable: function(object, keypath) {\n\
       var observer, observers, value;\n\
 \n\
-      if (this.keypaths.indexOf(keypath) !== -1) {\n\
+      if (this.schedulable_keypaths.indexOf(keypath) !== -1) {\n\
         return;\n\
       }\n\
-      this.keypaths.push(keypath);\n\
+      this.schedulable_keypaths.push(keypath);\n\
       observers = object.observation.observers;\n\
       observer = observers[keypath];\n\
       value = observer.path_.getValueFrom(object);\n\
@@ -14580,7 +14580,8 @@ jQuery.extend(scheduler, {\n\
         configurable: true\n\
       });\n\
       if (value !== observer.path_.getValueFrom(object)) {\n\
-        return observer.setValue(value);\n\
+        observer.setValue(value);\n\
+        return object.observation.deliver();\n\
       }\n\
     },\n\
     deliver: function() {\n\
@@ -14619,13 +14620,36 @@ jQuery.extend(scheduler, {\n\
 });\n\
 \n\
 schedulerable = function(observable) {\n\
+  schedulerable.storage_for(observable);\n\
+  schedulerable.schedulable_observers();\n\
+  return schedulerable.augment(observable);\n\
+};\n\
+\n\
+schedulerable.storage_for = function(observable) {};\n\
+\n\
+schedulerable.schedulable_observers = function() {\n\
+  var Path = require(\"observable/vendor/observe-js/observe.js\").Path;\n\
+  var original;\n\
+\n\
+  original = Path.prototype.setValueFrom;\n\
+  return Path.prototype.setValueFrom = function(object) {\n\
+    var changed;\n\
+\n\
+    changed = original.apply(this, arguments);\n\
+    if (changed) {\n\
+      return object.observation.scheduler.schedule();\n\
+    }\n\
+  };\n\
+};\n\
+\n\
+schedulerable.augment = function(observable) {\n\
   var original;\n\
 \n\
   original = observable.methods.subscribe;\n\
   observable.methods.subscribe = function(keypath, callback) {\n\
     original.apply(this, arguments);\n\
     if (typeof keypath !== 'function') {\n\
-      return this.observation.scheduler.property(this, keypath);\n\
+      return this.observation.scheduler.schedulable(this, keypath);\n\
     }\n\
   };\n\
   return jQuery.extend((function() {\n\

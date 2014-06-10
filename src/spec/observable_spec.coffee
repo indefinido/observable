@@ -7,10 +7,11 @@ Platform   = require("observable/vendor/observe-js/observe.js").Platform
 describe 'observable #()', ->
   return unless root.should
 
-  beforeEach ->
-    @object = property: 'value'
+  before ->
     @wait   = (callback, time = 800) => setTimeout callback, time
 
+  beforeEach ->
+    @object = property: 'value'
 
   it 'should create a observation property', ->
     @object.should.not.have.property 'observation'
@@ -51,57 +52,40 @@ describe 'observable #()', ->
         @spy.called.should.be.false
 
       it 'should subscribe to property', (done) ->
-        @object.subscribe 'property', @spy
-
+        @object.subscribe 'property', -> done()
         @object.property = 'mafagafoid'
 
-        @wait =>
+      it 'should let multiple function subscriptions to property', (done) ->
+        @object.subscribe 'other', @spy
+        @object.subscribe 'other', =>
           @spy.called.should.be.true
           done()
-
-      it 'should let multiple function subscriptions to property', (done) ->
-        second_spy = sinon.spy()
-
-        @object.subscribe 'other', @spy
-        @object.subscribe 'other', second_spy
 
         @object.other = 'mafagafo'
 
-        @wait =>
-          @spy.called.should.be.true
-          second_spy.called.should.be.true
-          done()
-
     describe 'when object', ->
-      it 'should report any changes', ->
-        @object.subscribe => @spy()
-        @object.domo = 10
+      it 'should report any changes', (done) ->
+        @object.subscribe -> done()
+        @object.domo     = 10
 
+        # Microtask Checkpoint is Mandatory in this case
         Platform.performMicrotaskCheckpoint()
 
-        @spy.called.should.be.true
-
-      it 'should schedule changes reporting when know properties are mixed', (done) ->
-          @object.subscribe 'domo', ->
-          @object.subscribe => @spy()
-          @object.domo = 10
-
-          @wait =>
-            @spy.called.should.be.true
-            done()
+      it 'should schedule changes reporting when known properties are changed', (done) ->
+          @object.subscribe 'domo', -> # nothing
+          @object.subscribe -> done()
+          @object.domo      = 10
 
 
     describe 'when keypath', ->
-      it 'should subscribe to property', ->
+      it 'should subscribe to double keypath', (done) ->
         @object.property = {subproperty: 'subvalue'}
-        @object.subscribe 'property.subproperty', => @spy()
+        @object.subscribe 'property.subproperty', -> done()
 
+        # TODO implement scheduler for long keypaths
         @object.property.subproperty = 'mafagafo'
 
         Platform.performMicrotaskCheckpoint()
-
-        @spy.called.should.be.true
-
 
     # TODO wait for rivets to implement array observer
     describe 'when array', ->

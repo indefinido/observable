@@ -9,7 +9,7 @@ scheduler = (options = {}) ->
   options[name] = value: value for name, value of options
 
   jQuery.extend options,
-    keypaths: value: []
+    schedulable_keypaths: value: []
     schedule: value: ->
       deliver = => @deliver()
       clearTimeout timeout
@@ -21,9 +21,9 @@ scheduler = (options = {}) ->
 jQuery.extend scheduler,
   methods:
     # TODO pass object as parameter
-    property: (object, keypath) ->
-      return unless @keypaths.indexOf(keypath) == -1
-      @keypaths.push keypath
+    schedulable: (object, keypath) ->
+      return unless @schedulable_keypaths.indexOf(keypath) == -1
+      @schedulable_keypaths.push keypath
       {observation: {observers}} = object
       observer = observers[keypath]
 
@@ -39,7 +39,9 @@ jQuery.extend scheduler,
 
       # Only update current value if the getter and setter definitions
       # changed it
-      observer.setValue value unless value == observer.path_.getValueFrom object
+      unless value == observer.path_.getValueFrom object
+        observer.setValue value
+        object.observation.deliver()
 
     deliver   : -> @target.observation.deliver()
 
@@ -66,8 +68,14 @@ jQuery.extend scheduler,
     destroy: ->
       @target = null
 
+# Shims observable to schedule changes
 schedulerable = (observable) ->
-  # TODO use this property when shimming Object.observe, and when it
+  schedulerable.storage_for observable
+  schedulerable.schedulable_observers()
+  schedulerable.augment observable
+
+schedulerable.storage_for = (observable) ->
+  # TODO use observed property when shimming Object.observe, and when it
   # gets removed in the next version
   #
   # Object.defineProperty object, "observed",
@@ -75,11 +83,26 @@ schedulerable = (observable) ->
   #   enumerable: false
   #   value: {}
 
+schedulerable.schedulable_observers = ->
+
+  # Augment keypath observer to also schedule changes when setting
+  # values
+  `import {Path} from '../../vendor/observe-js/observe.js'`
+  original = Path.prototype.setValueFrom
+  Path.prototype.setValueFrom = (object) ->
+    changed = original.apply @, arguments
+    object.observation.scheduler.schedule() if changed
+
+schedulerable.augment = (observable) ->
+  # Since property changes must be scheduled in legacy browsers that
+  # does not support Object.observe, we override observable to add a
+  # scheduler in each observed object
   original = observable.methods.subscribe
+
   # TODO allow multiple callbacks as arguments on the api
   observable.methods.subscribe = (keypath, callback)->
     original.apply @, arguments
-    @observation.scheduler.property @, keypath unless typeof keypath == 'function'
+    @observation.scheduler.schedulable @, keypath unless typeof keypath == 'function'
 
   jQuery.extend (->
     object = observable.apply @, arguments

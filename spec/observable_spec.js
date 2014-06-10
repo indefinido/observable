@@ -8,17 +8,19 @@ describe('observable #()', function() {
   if (!root.should) {
     return;
   }
-  beforeEach(function() {
+  before(function() {
     var _this = this;
 
-    this.object = {
-      property: 'value'
-    };
     return this.wait = function(callback, time) {
       if (time == null) {
         time = 800;
       }
       return setTimeout(callback, time);
+    };
+  });
+  beforeEach(function() {
+    return this.object = {
+      property: 'value'
     };
   });
   it('should create a observation property', function() {
@@ -60,68 +62,48 @@ describe('observable #()', function() {
         return this.spy.called.should.be["false"];
       });
       it('should subscribe to property', function(done) {
-        var _this = this;
-
-        this.object.subscribe('property', this.spy);
-        this.object.property = 'mafagafoid';
-        return this.wait(function() {
-          _this.spy.called.should.be["true"];
+        this.object.subscribe('property', function() {
           return done();
         });
+        return this.object.property = 'mafagafoid';
       });
       return it('should let multiple function subscriptions to property', function(done) {
-        var second_spy,
-          _this = this;
+        var _this = this;
 
-        second_spy = sinon.spy();
         this.object.subscribe('other', this.spy);
-        this.object.subscribe('other', second_spy);
-        this.object.other = 'mafagafo';
-        return this.wait(function() {
+        this.object.subscribe('other', function() {
           _this.spy.called.should.be["true"];
-          second_spy.called.should.be["true"];
           return done();
         });
+        return this.object.other = 'mafagafo';
       });
     });
     describe('when object', function() {
-      it('should report any changes', function() {
-        var _this = this;
-
+      it('should report any changes', function(done) {
         this.object.subscribe(function() {
-          return _this.spy();
-        });
-        this.object.domo = 10;
-        Platform.performMicrotaskCheckpoint();
-        return this.spy.called.should.be["true"];
-      });
-      return it('should schedule changes reporting when know properties are mixed', function(done) {
-        var _this = this;
-
-        this.object.subscribe('domo', function() {});
-        this.object.subscribe(function() {
-          return _this.spy();
-        });
-        this.object.domo = 10;
-        return this.wait(function() {
-          _this.spy.called.should.be["true"];
           return done();
         });
+        this.object.domo = 10;
+        return Platform.performMicrotaskCheckpoint();
+      });
+      return it('should schedule changes reporting when known properties are changed', function(done) {
+        this.object.subscribe('domo', function() {});
+        this.object.subscribe(function() {
+          return done();
+        });
+        return this.object.domo = 10;
       });
     });
     describe('when keypath', function() {
-      return it('should subscribe to property', function() {
-        var _this = this;
-
+      return it('should subscribe to double keypath', function(done) {
         this.object.property = {
           subproperty: 'subvalue'
         };
         this.object.subscribe('property.subproperty', function() {
-          return _this.spy();
+          return done();
         });
         this.object.property.subproperty = 'mafagafo';
-        Platform.performMicrotaskCheckpoint();
-        return this.spy.called.should.be["true"];
+        return Platform.performMicrotaskCheckpoint();
       });
     });
     return describe('when array', function() {
