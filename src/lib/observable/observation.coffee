@@ -1,7 +1,7 @@
 observation =
   add      : (keypath, callback) -> @observers[keypath].add callback
   remove   : (keypath, callback) -> @observers[keypath].remove callback
-  deliver  : -> observer.deliver() for keypath, observer of @observers
+  deliver  : (discard) -> observer.deliver discard for keypath, observer of @observers
   # TODO allow custom changes delivery
   # report: ->
   mute     : (keypath) ->

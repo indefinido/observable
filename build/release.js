@@ -9975,14 +9975,19 @@ schedulerable.schedulable_observers = function() {
 };
 
 schedulerable.augment = function(observable) {
-  var original;
+  var subscribe, unobserve;
 
-  original = observable.methods.subscribe;
+  subscribe = observable.methods.subscribe;
   observable.methods.subscribe = function(keypath, callback) {
-    original.apply(this, arguments);
+    subscribe.apply(this, arguments);
     if (typeof keypath !== 'function') {
       return this.observation.scheduler.schedulable(this, keypath);
     }
+  };
+  unobserve = observable.unobserve;
+  observable.unobserve = function() {
+    unobserve.apply(this, arguments);
+    return object.observation.scheduler.destroy();
   };
   return jQuery.extend((function() {
     var object;
@@ -10096,7 +10101,6 @@ jQuery.extend(observable, {
       delete object[name];
     }
     object.observation.destroy();
-    object.observation.scheduler.destroy();
     delete object.observation;
     delete object.observed;
     return object;
@@ -10187,14 +10191,14 @@ observation = {
   remove: function(keypath, callback) {
     return this.observers[keypath].remove(callback);
   },
-  deliver: function() {
+  deliver: function(discard) {
     var keypath, observer, _ref, _results;
 
     _ref = this.observers;
     _results = [];
     for (keypath in _ref) {
       observer = _ref[keypath];
-      _results.push(observer.deliver());
+      _results.push(observer.deliver(discard));
     }
     return _results;
   },

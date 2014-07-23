@@ -14643,14 +14643,19 @@ schedulerable.schedulable_observers = function() {\n\
 };\n\
 \n\
 schedulerable.augment = function(observable) {\n\
-  var original;\n\
+  var subscribe, unobserve;\n\
 \n\
-  original = observable.methods.subscribe;\n\
+  subscribe = observable.methods.subscribe;\n\
   observable.methods.subscribe = function(keypath, callback) {\n\
-    original.apply(this, arguments);\n\
+    subscribe.apply(this, arguments);\n\
     if (typeof keypath !== 'function') {\n\
       return this.observation.scheduler.schedulable(this, keypath);\n\
     }\n\
+  };\n\
+  unobserve = observable.unobserve;\n\
+  observable.unobserve = function() {\n\
+    unobserve.apply(this, arguments);\n\
+    return object.observation.scheduler.destroy();\n\
   };\n\
   return jQuery.extend((function() {\n\
     var object;\n\
@@ -14766,7 +14771,6 @@ jQuery.extend(observable, {\n\
       delete object[name];\n\
     }\n\
     object.observation.destroy();\n\
-    object.observation.scheduler.destroy();\n\
     delete object.observation;\n\
     delete object.observed;\n\
     return object;\n\
@@ -14859,14 +14863,14 @@ observation = {\n\
   remove: function(keypath, callback) {\n\
     return this.observers[keypath].remove(callback);\n\
   },\n\
-  deliver: function() {\n\
+  deliver: function(discard) {\n\
     var keypath, observer, _ref, _results;\n\
 \n\
     _ref = this.observers;\n\
     _results = [];\n\
     for (keypath in _ref) {\n\
       observer = _ref[keypath];\n\
-      _results.push(observer.deliver());\n\
+      _results.push(observer.deliver(discard));\n\
     }\n\
     return _results;\n\
   },\n\

@@ -1,9 +1,6 @@
-# Shim older needed features
-`import './platform.js'`
-# TODO remove jquery dependency
-`import jQuery          from 'jquery'`
-# Observable Implementation
-`import observation     from './observable/observation.js'`
+`import './platform.js'` # Shim older needed features
+`import jQuery          from 'jquery'` # TODO remove jquery dependency
+`import observation     from './observable/observation.js'` # Observable Implementation
 `import selection       from './observable/selection.js'`
 `import KeypathObserver from './observable/keypath_observer.js'`
 `import SelfObserver    from './observable/self_observer.js'`
@@ -43,7 +40,7 @@ jQuery.extend observable,
     observer = observers[keypath] ||= new KeypathObserver object, keypath
 
   unobserve: (object) ->
-      # In case the users tries to unobserve a not observed object
+    # In case the users tries to unobserve a not observed object
     return object unless object.observation
 
     # TODO remove root setter and root getter
@@ -52,8 +49,9 @@ jQuery.extend observable,
     delete object[name] for name of observable.methods
 
     object.observation.destroy()
-    object.observation.scheduler.destroy()
     delete object.observation
+
+    # TODO remove observed property
     delete object.observed
 
     object

@@ -20,7 +20,6 @@ scheduler = (options = {}) ->
 
 jQuery.extend scheduler,
   methods:
-    # TODO pass object as parameter
     schedulable: (object, keypath) ->
       return unless @schedulable_keypaths.indexOf(keypath) == -1
       @schedulable_keypaths.push keypath
@@ -52,12 +51,15 @@ jQuery.extend scheduler,
         (value) ->
           current_setter.call @, value
 
+          # TODO remove observed
           @observed[keypath] = value
           @observation.scheduler.schedule()
           value
 
       else
         (value) ->
+
+          # TODO remove observed
           @observed[keypath] = value
           @observation.scheduler.schedule()
           value
@@ -93,16 +95,21 @@ schedulerable.schedulable_observers = ->
     changed = original.apply @, arguments
     object.observation.scheduler.schedule() if changed
 
+# Since property changes must be scheduled in legacy browsers that
+# does not support Object.observe, we override observable to add a
+# scheduler in each observed object
 schedulerable.augment = (observable) ->
-  # Since property changes must be scheduled in legacy browsers that
-  # does not support Object.observe, we override observable to add a
-  # scheduler in each observed object
-  original = observable.methods.subscribe
 
   # TODO allow multiple callbacks as arguments on the api
-  observable.methods.subscribe = (keypath, callback)->
-    original.apply @, arguments
+  subscribe = observable.methods.subscribe
+  observable.methods.subscribe = (keypath, callback) ->
+    subscribe.apply @, arguments
     @observation.scheduler.schedulable @, keypath unless typeof keypath == 'function'
+
+  unobserve = observable.unobserve
+  observable.unobserve = ->
+    unobserve.apply @, arguments
+    object.observation.scheduler.destroy()
 
   jQuery.extend (->
     object = observable.apply @, arguments
