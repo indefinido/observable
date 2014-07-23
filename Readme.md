@@ -1,14 +1,17 @@
 
 # observable
 
-  Observable, observer capabilities built upon the observable shim
+  observer capabilities + prototypal composition
 
 ## Summary
 
- - We need a pretty sintax to listen to single properties
+ - We need a coherent prototyped api to listen to keypaths, objects
+   and arrays.
+
  - Requirements
-   - ES5 Getters and Setters (Shim ships with component, IE 10+)
-   - ES7 Observer            (Shim ships with component, IE ?+)
+   - ES5 Getters and Setters (Shim ships with component)
+   - ES7 Observer            (Shim ships with component)
+   - Uses polymer when available. With ugly shim, works on IE5+. With pretty shim works on IE8+.
 
 ## Installation
 
@@ -24,7 +27,7 @@ Just implements a nicer interface:
 
   require('observable');
 
-  arthur = observable.call({
+  arthur = observable({
     name     : function () { return this.firstname + " " + this.surname; },
     firstname: "Arthur Philip",
     surname  : "Dent",
@@ -41,8 +44,8 @@ Just implements a nicer interface:
   });
 
   // Subscribe to single property change
-  arthur.subscribe('firstname', function ( update) {
-    console.log( update.name,  update.type,  update.oldValue, '→',  update.object[ update.name]); // also this[ update.name]
+  arthur.subscribe('firstname', function (update) {
+    console.log( update.name,  update.type,  update.oldValue, '→',  update.object[ update.name]); // also this[update.name]
   });
 
 ```
@@ -53,19 +56,20 @@ Just implements a nicer interface:
 ```javascript
   require('observable');
 
-  arthur = observable.call({
+  arthur = observable({
     name     : function () { return this.firstname + " " + this.surname; },
     firstname: "Arthur Philip",
     surname  : "Dent",
     species  : "Humam"
   });
 
-  // Don't mess with this properties
-  // they change between browsers!
+
+  arthur.observation;
   arthur.observed.name; // "Arthur Philip"
 
   // Also in some browsers it is not possible to create unreadable
   // properties, the it will apear on for in loops!
+  // Use the property forOwnProperty check
   for (attribute in arthur) {
     if (attribute == "observed") alert("Im not hidden!");
   }
@@ -79,7 +83,7 @@ Just implements a nicer interface:
 ```javascript
   require('observable/adapters/rivets');
 
-  arthur = observable.call({
+  arthur = observable({
     name     : function () { return this.firstname + " " + this.surname; },
     firstname: "Arthur Philip",
     surname  : "Dent",
@@ -87,9 +91,9 @@ Just implements a nicer interface:
   }),
 
   template = '<div class="person">' +
-			 '  <span data-html="person.name"></span>    ' +
-			 '  <span data-html="person.species"></span> ' +
-			 '</div>';
+             '  <span data-html="person.name"></span>    ' +
+             '  <span data-html="person.species"></span> ' +
+             '</div>';
 
   document.body.innerHTML = template;
   element = document.body.children[0];
