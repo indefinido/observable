@@ -14529,12 +14529,11 @@ var jQuery = require(\"component~jquery@1.9.1\");\n\
 var scheduler, schedulerable;\n\
 \n\
 scheduler = function(options) {\n\
-  var name, timeout, value;\n\
+  var name, value;\n\
 \n\
   if (options == null) {\n\
     options = {};\n\
   }\n\
-  timeout = null;\n\
   for (name in options) {\n\
     value = options[name];\n\
     options[name] = {\n\
@@ -14553,8 +14552,8 @@ scheduler = function(options) {\n\
         deliver = function() {\n\
           return _this.deliver();\n\
         };\n\
-        clearTimeout(timeout);\n\
-        return timeout = setTimeout(deliver, 20 || options.wait);\n\
+        clearTimeout(this.timer);\n\
+        return this.timer = setTimeout(deliver, 20 || options.wait);\n\
       }\n\
     }\n\
   });\n\
@@ -14653,9 +14652,12 @@ schedulerable.augment = function(observable) {\n\
     }\n\
   };\n\
   unobserve = observable.unobserve;\n\
-  observable.unobserve = function() {\n\
-    unobserve.apply(this, arguments);\n\
-    return object.observation.scheduler.destroy();\n\
+  observable.unobserve = function(object) {\n\
+    if (!object.observation) {\n\
+      return;\n\
+    }\n\
+    object.observation.scheduler.destroy();\n\
+    return unobserve.apply(this, arguments);\n\
   };\n\
   return jQuery.extend((function() {\n\
     var object;\n\
@@ -14717,13 +14719,21 @@ module.exports = lookup;\n\
 ));
 
 require.register("observable/lib/observable.js", Function("exports, module",
-"require(\"observable/lib/platform.js\");\n\
+"var observable;\n\
+\n\
+Number.isNaN || (Number.isNaN = isNaN);\n\
+\n\
+require(\"observable/lib/platform.js\");\n\
+\n\
 var jQuery = require(\"component~jquery@1.9.1\");\n\
+\n\
 var observation = require(\"observable/lib/observable/observation.js\");\n\
+\n\
 var selection = require(\"observable/lib/observable/selection.js\");\n\
+\n\
 var KeypathObserver = require(\"observable/lib/observable/keypath_observer.js\");\n\
+\n\
 var SelfObserver = require(\"observable/lib/observable/self_observer.js\");\n\
-var observable;\n\
 \n\
 observable = function() {\n\
   var object;\n\

@@ -1,10 +1,8 @@
 # TODO transform look up into getOwnPropertyDescriptor Shim
-`import lookup from '../lookup.js'`
-`import jQuery from 'jquery'`
+`import lookup      from '../lookup.js'`
+`import jQuery      from 'jquery'`
 
 scheduler = (options = {}) ->
-  timeout = null
-
   # Convert options to descriptors
   options[name] = value: value for name, value of options
 
@@ -12,8 +10,8 @@ scheduler = (options = {}) ->
     schedulable_keypaths: value: []
     schedule: value: ->
       deliver = => @deliver()
-      clearTimeout timeout
-      timeout = setTimeout deliver, 20 or options.wait
+      clearTimeout @timer
+      @timer = setTimeout deliver, 20 or options.wait
 
   Object.create scheduler.methods, options
 
@@ -107,9 +105,10 @@ schedulerable.augment = (observable) ->
     @observation.scheduler.schedulable @, keypath unless typeof keypath == 'function'
 
   unobserve = observable.unobserve
-  observable.unobserve = ->
-    unobserve.apply @, arguments
+  observable.unobserve = (object) ->
+    return unless object.observation
     object.observation.scheduler.destroy()
+    unobserve.apply @, arguments
 
   jQuery.extend (->
     object = observable.apply @, arguments

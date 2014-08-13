@@ -1,3 +1,8 @@
+# TODO Update polymer observe-js, and run tests again on an
+# environment that has not Object.observe to check if it is still
+# needed to copy isNaN to Number
+Number.isNaN ||= isNaN
+
 `import './platform.js'` # Shim older needed features
 `import jQuery          from 'jquery'` # TODO remove jquery dependency
 `import observation     from './observable/observation.js'` # Observable Implementation
