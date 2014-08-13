@@ -14654,7 +14654,7 @@ schedulerable.augment = function(observable) {\n\
   unobserve = observable.unobserve;\n\
   observable.unobserve = function(object) {\n\
     if (!object.observation) {\n\
-      return;\n\
+      return object;\n\
     }\n\
     object.observation.scheduler.destroy();\n\
     return unobserve.apply(this, arguments);\n\

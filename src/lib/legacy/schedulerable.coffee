@@ -106,7 +106,7 @@ schedulerable.augment = (observable) ->
 
   unobserve = observable.unobserve
   observable.unobserve = (object) ->
-    return unless object.observation
+    return object unless object.observation
     object.observation.scheduler.destroy()
     unobserve.apply @, arguments
 
